@@ -1,0 +1,29 @@
+Train samples: 141,  Test samples: 34
+Features: 9,   Targets: 3
+
+Model parameters: 899
+MLP(
+  (net): Sequential(
+    (0): Linear(in_features=9, out_features=32, bias=True)
+    (1): ReLU()
+    (2): Dropout(p=0.2, inplace=False)
+    (3): Linear(in_features=32, out_features=16, bias=True)
+    (4): ReLU()
+    (5): Dropout(p=0.2, inplace=False)
+    (6): Linear(in_features=16, out_features=3, bias=True)
+  )
+)
+Epoch  100 | train MSE: 0.3525 | val MSE: 0.4313 | patience: 13/100
+Epoch  187 | train MSE: 0.3203 | val MSE: 0.4468 | patience: 100/100
+
+Early stopping at epoch 187
+
+============================================================
+Final evaluation on test set (original scale)
+============================================================
+  T_THMs_ug_L      RMSE=  7.306  MAE=  5.801  R²=0.4893
+  DBCM_ug_L        RMSE=  2.740  MAE=  2.189  R²=0.5015
+  BDCM_ug_L        RMSE=  1.634  MAE=  1.250  R²=0.3781
+
+Model saved to mlp_checkpoint.pt
+
