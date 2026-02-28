@@ -1,0 +1,21 @@
+# Excluded directories
+figures/
+model/
+papers/
+
+# Excluded data files
+data.csv
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Model checkpoints
+*.pt
+
+# macOS
+.DS_Store
+
+# Jupyter
+.ipynb_checkpoints/
