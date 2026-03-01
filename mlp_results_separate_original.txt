@@ -1,0 +1,26 @@
+Train samples: 141,  Test samples: 34
+Features: 9,   Targets: 3
+  → Train subset: 119,  Validation: 22
+
+============================================================
+Training independent models for each target
+============================================================
+
+▶ Training model for: T_THMs_ug_L
+  Early stopping at epoch  236 (best epoch:  136) | final val MSE: 0.5707
+
+▶ Training model for: DBCM_ug_L
+  Early stopping at epoch  262 (best epoch:  162) | final val MSE: 0.5045
+
+▶ Training model for: BDCM_ug_L
+  Early stopping at epoch  122 (best epoch:   22) | final val MSE: 0.8476
+
+============================================================
+Final evaluation on test set (original scale)
+============================================================
+  T_THMs_ug_L      RMSE=  7.832  MAE=  6.170  R²=0.4130
+  DBCM_ug_L        RMSE=  2.969  MAE=  2.371  R²=0.4145
+  BDCM_ug_L        RMSE=  1.691  MAE=  1.288  R²=0.3337
+
+Models saved to mlp_checkpoint_separate.pt
+

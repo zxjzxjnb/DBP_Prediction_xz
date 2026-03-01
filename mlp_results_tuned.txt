@@ -1,0 +1,32 @@
+
+
+Train: 141,  Test: 34
+Features: 9,  Targets: 3
+Optuna trials: 200,  CV folds: 5
+
+
+============================================================
+Best trial
+============================================================
+  CV MSE: 0.4149
+  n_layers: 2
+  hidden_dim: 64
+  dropout: 0.5
+  activation: Tanh
+  lr: 0.00831608810326909
+  weight_decay: 0.004335006601375103
+  batch_size: 16
+
+============================================================
+Final retrain on full training set → test set evaluation
+============================================================
+  Determining optimal epoch count from CV ...
+  Fold best epochs: [2, 34, 13, 158, 109]  →  median = 34
+  Trained for 34 epochs on all 141 training samples
+
+  T_THMs_ug_L      RMSE=  7.971  MAE=  6.262  R²=0.3921
+  DBCM_ug_L        RMSE=  2.950  MAE=  2.461  R²=0.4219
+  BDCM_ug_L        RMSE=  1.767  MAE=  1.384  R²=0.2724
+
+Model saved to mlp_tuned_checkpoint.pt
+

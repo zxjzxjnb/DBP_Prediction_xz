@@ -1,6 +1,11 @@
 """
 MLP baseline for DBP prediction on DBP_dataset_DWTP_B.csv
 Predicts: T_THMs, DBCM, BDCM from 9 water quality features.
+
+FIX 1: early stopping uses a held-out validation split from TRAINING data,
+       not the test set. Test set is only touched for final evaluation.
+FIX 2: trains a SEPARATE model for each target to avoid MSE scaling issues
+       and underfitting on smaller targets.
 """
 
 import torch
@@ -8,6 +13,7 @@ import torch.nn as nn
 import pandas as pd
 import numpy as np
 from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 
 # ── Reproducibility ──────────────────────────────────────────────────────────
@@ -23,6 +29,7 @@ WEIGHT_DECAY = 1e-4          # L2 regularisation
 BATCH_SIZE = 16
 MAX_EPOCHS = 2000
 PATIENCE = 100                # early-stopping patience
+VAL_FRACTION = 0.15           # fraction of training data held out for validation
 
 # ── Data loading ─────────────────────────────────────────────────────────────
 FEATURE_COLS = [
@@ -38,24 +45,13 @@ test_df  = df[df["split"] == "test"]
 print(f"Train samples: {len(train_df)},  Test samples: {len(test_df)}")
 print(f"Features: {len(FEATURE_COLS)},   Targets: {len(TARGET_COLS)}")
 
-# ── Feature scaling (fit on train only, transform both) ──────────────────────
-scaler_x = StandardScaler().fit(train_df[FEATURE_COLS])
-scaler_y = StandardScaler().fit(train_df[TARGET_COLS])
+# ── Train / Validation split (from training data only) ───────────────────────
+train_sub_df, val_df = train_test_split(
+    train_df, test_size=VAL_FRACTION, random_state=SEED
+)
+print(f"  → Train subset: {len(train_sub_df)},  Validation: {len(val_df)}")
 
-X_train = torch.tensor(scaler_x.transform(train_df[FEATURE_COLS]), dtype=torch.float32)
-Y_train = torch.tensor(scaler_y.transform(train_df[TARGET_COLS]), dtype=torch.float32)
-X_test  = torch.tensor(scaler_x.transform(test_df[FEATURE_COLS]),  dtype=torch.float32)
-Y_test  = torch.tensor(scaler_y.transform(test_df[TARGET_COLS]),   dtype=torch.float32)
-
-# Keep raw targets for evaluation in original scale
-Y_test_raw = test_df[TARGET_COLS].values
-
-# ── DataLoader ───────────────────────────────────────────────────────────────
-train_ds = torch.utils.data.TensorDataset(X_train, Y_train)
-train_loader = torch.utils.data.DataLoader(train_ds, batch_size=BATCH_SIZE, shuffle=True)
-
-
-# ── Model ────────────────────────────────────────────────────────────────────
+# ── Model Definition ─────────────────────────────────────────────────────────
 class MLP(nn.Module):
     def __init__(self, in_dim, hidden_dims, out_dim, dropout=0.2):
         super().__init__()
@@ -70,80 +66,103 @@ class MLP(nn.Module):
     def forward(self, x):
         return self.net(x)
 
+# We will store models, scalers, and predictions for each target
+models = {}
+scalers_x = {}
+scalers_y = {}
 
-model = MLP(len(FEATURE_COLS), HIDDEN_DIMS, len(TARGET_COLS), DROPOUT)
-optimizer = torch.optim.Adam(model.parameters(), lr=LR, weight_decay=WEIGHT_DECAY)
-loss_fn = nn.MSELoss()
+print("\n" + "=" * 60)
+print("Training independent models for each target")
+print("=" * 60)
 
-print(f"\nModel parameters: {sum(p.numel() for p in model.parameters()):,}")
-print(model)
+for target_idx, target_name in enumerate(TARGET_COLS):
+    print(f"\n▶ Training model for: {target_name}")
 
-# ── Training with early stopping ────────────────────────────────────────────
-best_val_loss = float("inf")
-patience_counter = 0
-best_state = None
+    # ── Feature scaling for THIS target ──────────────────────────────────────
+    scaler_x = StandardScaler().fit(train_sub_df[FEATURE_COLS])
+    scaler_y = StandardScaler().fit(train_sub_df[[target_name]])
 
-for epoch in range(1, MAX_EPOCHS + 1):
-    # --- train ---
-    model.train()
-    epoch_loss = 0.0
-    for xb, yb in train_loader:          # iterate over ALL batches
-        pred = model(xb)
-        loss = loss_fn(pred, yb)
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-        epoch_loss += loss.item() * len(xb)
-    epoch_loss /= len(train_ds)
+    X_train = torch.tensor(scaler_x.transform(train_sub_df[FEATURE_COLS]), dtype=torch.float32)
+    Y_train = torch.tensor(scaler_y.transform(train_sub_df[[target_name]]), dtype=torch.float32)
+    X_val   = torch.tensor(scaler_x.transform(val_df[FEATURE_COLS]),      dtype=torch.float32)
+    Y_val   = torch.tensor(scaler_y.transform(val_df[[target_name]]),        dtype=torch.float32)
 
-    # --- validate on test set (no shuffle, no dropout) ---
-    model.eval()
-    with torch.no_grad():
-        val_pred = model(X_test)
-        val_loss = loss_fn(val_pred, Y_test).item()
+    train_ds = torch.utils.data.TensorDataset(X_train, Y_train)
+    train_loader = torch.utils.data.DataLoader(train_ds, batch_size=BATCH_SIZE, shuffle=True)
 
-    # --- early stopping ---
-    if val_loss < best_val_loss:
-        best_val_loss = val_loss
-        patience_counter = 0
-        best_state = {k: v.clone() for k, v in model.state_dict().items()}
-    else:
-        patience_counter += 1
+    # ── Init model (output dim = 1) ──────────────────────────────────────────
+    torch.manual_seed(SEED + target_idx) # different seed per target initialization
+    model = MLP(len(FEATURE_COLS), HIDDEN_DIMS, 1, DROPOUT)
+    optimizer = torch.optim.Adam(model.parameters(), lr=LR, weight_decay=WEIGHT_DECAY)
+    loss_fn = nn.MSELoss()
 
-    if epoch % 100 == 0 or patience_counter == PATIENCE:
-        print(f"Epoch {epoch:4d} | train MSE: {epoch_loss:.4f} | val MSE: {val_loss:.4f} | patience: {patience_counter}/{PATIENCE}")
+    # ── Training with early stopping ─────────────────────────────────────────
+    best_val_loss = float("inf")
+    patience_counter = 0
+    best_state = None
+    best_epoch = 0
 
-    if patience_counter >= PATIENCE:
-        print(f"\nEarly stopping at epoch {epoch}")
-        break
+    for epoch in range(1, MAX_EPOCHS + 1):
+        model.train()
+        for xb, yb in train_loader:
+            pred = model(xb)
+            loss = loss_fn(pred, yb)
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
 
-# ── Load best model & evaluate ───────────────────────────────────────────────
-model.load_state_dict(best_state)
-model.eval()
+        model.eval()
+        with torch.no_grad():
+            val_loss = loss_fn(model(X_val), Y_val).item()
 
-with torch.no_grad():
-    pred_scaled = model(X_test).numpy()
+        if val_loss < best_val_loss:
+            best_val_loss = val_loss
+            patience_counter = 0
+            best_state = {k: v.clone() for k, v in model.state_dict().items()}
+            best_epoch = epoch
+        else:
+            patience_counter += 1
 
-# Inverse-transform to original scale
-pred_raw = scaler_y.inverse_transform(pred_scaled)
+        if patience_counter >= PATIENCE:
+            print(f"  Early stopping at epoch {epoch:4d} (best epoch: {best_epoch:4d}) | final val MSE: {best_val_loss:.4f}")
+            break
+
+    model.load_state_dict(best_state)
+    
+    models[target_name] = model
+    scalers_x[target_name] = scaler_x
+    scalers_y[target_name] = scaler_y
+
 
 print("\n" + "=" * 60)
 print("Final evaluation on test set (original scale)")
 print("=" * 60)
 
-for i, name in enumerate(TARGET_COLS):
-    y_true = Y_test_raw[:, i]
-    y_pred = pred_raw[:, i]
+for target_name in TARGET_COLS:
+    model = models[target_name]
+    scaler_x = scalers_x[target_name]
+    scaler_y = scalers_y[target_name]
+
+    model.eval()
+    X_te = torch.tensor(scaler_x.transform(test_df[FEATURE_COLS]), dtype=torch.float32)
+    with torch.no_grad():
+        pred_scaled = model(X_te).numpy()
+    
+    # Inverse-transform to original scale
+    pred_raw = scaler_y.inverse_transform(pred_scaled)
+    y_pred = pred_raw[:, 0]
+    y_true = test_df[target_name].values
+    
     rmse = np.sqrt(mean_squared_error(y_true, y_pred))
     mae  = mean_absolute_error(y_true, y_pred)
     r2   = r2_score(y_true, y_pred)
-    print(f"  {name:15s}  RMSE={rmse:7.3f}  MAE={mae:7.3f}  R²={r2:.4f}")
+    print(f"  {target_name:15s}  RMSE={rmse:7.3f}  MAE={mae:7.3f}  R²={r2:.4f}")
 
-# ── Save model ───────────────────────────────────────────────────────────────
+# ── Save models ──────────────────────────────────────────────────────────────
 torch.save({
-    "model_state": best_state,
-    "scaler_x": scaler_x,
-    "scaler_y": scaler_y,
+    "model_states": {name: m.state_dict() for name, m in models.items()},
+    "scalers_x": scalers_x,
+    "scalers_y": scalers_y,
     "feature_cols": FEATURE_COLS,
     "target_cols": TARGET_COLS,
     "hyperparams": {
@@ -152,5 +171,5 @@ torch.save({
         "lr": LR,
         "weight_decay": WEIGHT_DECAY,
     },
-}, "mlp_checkpoint.pt")
-print("\nModel saved to mlp_checkpoint.pt")
+}, "mlp_checkpoint_separate.pt")
+print("\nModels saved to mlp_checkpoint_separate.pt")

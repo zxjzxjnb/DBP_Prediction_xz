@@ -1,0 +1,75 @@
+
+
+
+
+Train: 141,  Test: 34
+Features: 9,  Targets: 3
+Optuna trials: 200,  CV folds: 5
+
+
+============================================================
+Tuning model for: T_THMs_ug_L
+============================================================
+
+Best trial
+  CV MSE: 0.3810
+  n_layers: 2
+  hidden_dim: 32
+  dropout: 0.1
+  activation: ReLU
+  lr: 0.0046239466592205595
+  weight_decay: 0.00017334728037314513
+  batch_size: 8
+
+Final retrain on full training set ...
+  Determining optimal epoch count from CV ...
+  Fold best epochs: [22, 7, 5, 125, 3]  →  median = 7
+  Trained for 7 epochs on all 141 training samples
+
+============================================================
+Tuning model for: DBCM_ug_L
+============================================================
+
+Best trial
+  CV MSE: 0.3008
+  n_layers: 3
+  hidden_dim: 64
+  dropout: 0.5
+  activation: SiLU
+  lr: 0.006579513503486562
+  weight_decay: 1.4615542579776277e-05
+  batch_size: 16
+
+Final retrain on full training set ...
+  Determining optimal epoch count from CV ...
+  Fold best epochs: [12, 215, 13, 46, 4]  →  median = 13
+  Trained for 13 epochs on all 141 training samples
+
+============================================================
+Tuning model for: BDCM_ug_L
+============================================================
+
+Best trial
+  CV MSE: 0.5126
+  n_layers: 2
+  hidden_dim: 64
+  dropout: 0.5
+  activation: Tanh
+  lr: 0.009133505379377344
+  weight_decay: 3.961222608889181e-05
+  batch_size: 16
+
+Final retrain on full training set ...
+  Determining optimal epoch count from CV ...
+  Fold best epochs: [64, 6, 25, 101, 254]  →  median = 64
+  Trained for 64 epochs on all 141 training samples
+
+============================================================
+Final evaluation on test set (original scale)
+============================================================
+  T_THMs_ug_L      RMSE=  7.221  MAE=  5.582  R²=0.5011
+  DBCM_ug_L        RMSE=  2.742  MAE=  2.177  R²=0.5006
+  BDCM_ug_L        RMSE=  1.638  MAE=  1.290  R²=0.3746
+
+Models saved to mlp_tuned_checkpoint_separate.pt
+

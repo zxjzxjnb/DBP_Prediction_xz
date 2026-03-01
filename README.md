@@ -24,4 +24,4 @@ python train_mlp.py
 
 ## Acknowledgments
 
-This project is based on [DBPs-prediction-by-kan](https://github.com/XiaoyanLi-enviro/DBPs-prediction-by-kan) by **Xiaoyan Li** (2024), licensed under the [MIT License](LICENSE).
+This project is based on [DBPs-prediction-by-kan](https://github.com/xiaoyanLi629/DBPs-prediction-by-kan) by **Xiaoyan Li** (2024), licensed under the [MIT License](LICENSE).
