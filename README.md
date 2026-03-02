@@ -6,12 +6,6 @@ Predicting disinfection by-products (DBPs) in drinking water using MLP neural ne
 
 `DBP_dataset_DWTP_B.csv` — 176 water quality samples (141 train / 35 test) from DWTP-B, with 9 input features and 3 target DBP concentrations (T_THMs, DBCM, BDCM).
 
-## Usage
-
-```bash
-conda activate kan_model
-python train_mlp.py
-```
 
 ## Files
 
