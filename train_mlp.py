@@ -8,6 +8,7 @@ import torch.nn as nn
 import pandas as pd
 import numpy as np
 from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 
 # ── Reproducibility ──────────────────────────────────────────────────────────
@@ -23,6 +24,7 @@ WEIGHT_DECAY = 1e-4          # L2 regularisation
 BATCH_SIZE = 16
 MAX_EPOCHS = 2000
 PATIENCE = 100                # early-stopping patience
+VAL_FRACTION = 0.15           # hold-out validation fraction from training data only
 
 # ── Data loading ─────────────────────────────────────────────────────────────
 FEATURE_COLS = [
@@ -38,14 +40,23 @@ test_df  = df[df["split"] == "test"]
 print(f"Train samples: {len(train_df)},  Test samples: {len(test_df)}")
 print(f"Features: {len(FEATURE_COLS)},   Targets: {len(TARGET_COLS)}")
 
-# ── Feature scaling (fit on train only, transform both) ──────────────────────
-scaler_x = StandardScaler().fit(train_df[FEATURE_COLS])
-scaler_y = StandardScaler().fit(train_df[TARGET_COLS])
+# ── Train/validation split from training set only (no test leakage) ─────────
+train_sub_df, val_df = train_test_split(
+    train_df,
+    test_size=VAL_FRACTION,
+    random_state=SEED,
+)
+print(f"Train subset: {len(train_sub_df)}, Validation: {len(val_df)}")
 
-X_train = torch.tensor(scaler_x.transform(train_df[FEATURE_COLS]), dtype=torch.float32)
-Y_train = torch.tensor(scaler_y.transform(train_df[TARGET_COLS]), dtype=torch.float32)
-X_test  = torch.tensor(scaler_x.transform(test_df[FEATURE_COLS]),  dtype=torch.float32)
-Y_test  = torch.tensor(scaler_y.transform(test_df[TARGET_COLS]),   dtype=torch.float32)
+# ── Feature scaling (fit on train subset only) ───────────────────────────────
+scaler_x = StandardScaler().fit(train_sub_df[FEATURE_COLS])
+scaler_y = StandardScaler().fit(train_sub_df[TARGET_COLS])
+
+X_train = torch.tensor(scaler_x.transform(train_sub_df[FEATURE_COLS]), dtype=torch.float32)
+Y_train = torch.tensor(scaler_y.transform(train_sub_df[TARGET_COLS]), dtype=torch.float32)
+X_val   = torch.tensor(scaler_x.transform(val_df[FEATURE_COLS]),      dtype=torch.float32)
+Y_val   = torch.tensor(scaler_y.transform(val_df[TARGET_COLS]),       dtype=torch.float32)
+X_test  = torch.tensor(scaler_x.transform(test_df[FEATURE_COLS]),     dtype=torch.float32)
 
 # Keep raw targets for evaluation in original scale
 Y_test_raw = test_df[TARGET_COLS].values
@@ -96,11 +107,11 @@ for epoch in range(1, MAX_EPOCHS + 1):
         epoch_loss += loss.item() * len(xb)
     epoch_loss /= len(train_ds)
 
-    # --- validate on test set (no shuffle, no dropout) ---
+    # --- validate on hold-out validation set (from training data) ---
     model.eval()
     with torch.no_grad():
-        val_pred = model(X_test)
-        val_loss = loss_fn(val_pred, Y_test).item()
+        val_pred = model(X_val)
+        val_loss = loss_fn(val_pred, Y_val).item()
 
     # --- early stopping ---
     if val_loss < best_val_loss:

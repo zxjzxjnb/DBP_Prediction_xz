@@ -1,30 +1,30 @@
 """
-Optuna hyperparameter tuning for MLP baseline on DBP_dataset_DWTP_B.csv
-Predicts 3 targets JOINTLY but with TARGET SCALING to fix underfitting.
+Robust Optuna tuning for the MLP baseline on DBP_dataset_DWTP_B.csv.
 
-Key design choices:
-  - Search space includes 0 hidden layers (linear baseline)
-  - lr and weight_decay use log-uniform sampling
-  - StandardScaler fits both X and Y independently inside each CV fold
-  - 5-fold CV mean MSE on **SCALED Y** as objective
-  - Final retrain on all 141 train samples with best params
+Improvements over the previous script:
+  - Cleans duplicated code paths and keeps one deterministic pipeline.
+  - Tunes each target independently (T_THMs, DBCM, BDCM).
+  - Uses 5-fold CV objective on original-scale RMSE (with light stability penalty).
+  - Trains a CV ensemble with best params for stronger generalization on small data.
+  - Keeps test set strictly for final one-shot evaluation.
 """
 
+from __future__ import annotations
+
+import argparse
+import os
+from typing import Dict, List, Tuple
+
+import numpy as np
 import optuna
+import pandas as pd
 import torch
 import torch.nn as nn
-import pandas as pd
-import numpy as np
-from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.model_selection import KFold
-from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
+from sklearn.preprocessing import StandardScaler
 
-# ── Config ───────────────────────────────────────────────────────────────────
-SEED = 42
-N_TRIALS = 200
-N_FOLDS = 5
-MAX_EPOCHS = 2000
-PATIENCE = 80
+optuna.logging.set_verbosity(optuna.logging.WARNING)
 
 FEATURE_COLS = [
     "pH", "COD_mg_L", "NH4_N_mg_L", "NO2_N_mg_L", "NO3_N_mg_L",
@@ -32,32 +32,32 @@ FEATURE_COLS = [
 ]
 TARGET_COLS = ["T_THMs_ug_L", "DBCM_ug_L", "BDCM_ug_L"]
 
-torch.manual_seed(SEED)
-np.random.seed(SEED)
 
-# ── Data ─────────────────────────────────────────────────────────────────────
-df = pd.read_csv("DBP_dataset_DWTP_B.csv")
-train_df = df[df["split"] == "train"].reset_index(drop=True)
-test_df  = df[df["split"] == "test"].reset_index(drop=True)
-
-X_train_raw = train_df[FEATURE_COLS].values.astype(np.float32)
-Y_train_raw = train_df[TARGET_COLS].values.astype(np.float32)
-
-X_test_raw = test_df[FEATURE_COLS].values.astype(np.float32)
-
-print(f"Train: {len(train_df)},  Test: {len(test_df)}")
-print(f"Features: {len(FEATURE_COLS)},  Targets: {len(TARGET_COLS)}")
-print(f"Optuna trials: {N_TRIALS},  CV folds: {N_FOLDS}\n")
+def set_seed(seed: int) -> None:
+    torch.manual_seed(seed)
+    np.random.seed(seed)
 
 
-# ── Model builder ────────────────────────────────────────────────────────────
-def build_model(in_dim, out_dim, n_layers, hidden_dim, dropout, activation_name):
+def build_model(
+    in_dim: int,
+    out_dim: int,
+    n_layers: int,
+    hidden_dim: int,
+    dropout: float,
+    activation_name: str,
+) -> nn.Module:
     if n_layers == 0:
         return nn.Linear(in_dim, out_dim)
 
-    act_fn = {"ReLU": nn.ReLU, "LeakyReLU": nn.LeakyReLU,
-              "SiLU": nn.SiLU, "Tanh": nn.Tanh}[activation_name]
-    layers = []
+    act_map = {
+        "ReLU": nn.ReLU,
+        "LeakyReLU": nn.LeakyReLU,
+        "SiLU": nn.SiLU,
+        "Tanh": nn.Tanh,
+    }
+    act_fn = act_map[activation_name]
+
+    layers: List[nn.Module] = []
     prev = in_dim
     for _ in range(n_layers):
         layers += [nn.Linear(prev, hidden_dim), act_fn(), nn.Dropout(dropout)]
@@ -66,183 +66,442 @@ def build_model(in_dim, out_dim, n_layers, hidden_dim, dropout, activation_name)
     return nn.Sequential(*layers)
 
 
-# ── Single fold training ─────────────────────────────────────────────────────
-def train_one_fold(model, X_tr, Y_tr, X_va, Y_va, lr, weight_decay, batch_size):
-    optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
-    loss_fn = nn.MSELoss()
+def make_optimizer(model: nn.Module, params: Dict) -> torch.optim.Optimizer:
+    if params["optimizer"] == "AdamW":
+        return torch.optim.AdamW(
+            model.parameters(),
+            lr=params["lr"],
+            weight_decay=params["weight_decay"],
+        )
+    return torch.optim.Adam(
+        model.parameters(),
+        lr=params["lr"],
+        weight_decay=params["weight_decay"],
+    )
+
+
+def make_train_loss(params: Dict) -> nn.Module:
+    if params["loss"] == "Huber":
+        return nn.SmoothL1Loss(beta=params["huber_delta"])
+    return nn.MSELoss()
+
+
+def train_one_fold(
+    model: nn.Module,
+    X_tr: torch.Tensor,
+    Y_tr: torch.Tensor,
+    X_va: torch.Tensor,
+    Y_va: torch.Tensor,
+    params: Dict,
+    max_epochs: int,
+    patience: int,
+) -> Tuple[nn.Module, float, int, np.ndarray]:
+    optimizer = make_optimizer(model, params)
+    train_loss_fn = make_train_loss(params)
+    val_loss_fn = nn.MSELoss()  # use scaled MSE for early stopping stability
+
     dataset = torch.utils.data.TensorDataset(X_tr, Y_tr)
-    # Using drop_last=False is safe here but smaller batches might be noisy
-    loader  = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=True)
+    loader = torch.utils.data.DataLoader(
+        dataset,
+        batch_size=params["batch_size"],
+        shuffle=True,
+    )
 
     best_val = float("inf")
     best_epoch = 0
     wait = 0
+    best_state = {k: v.detach().cpu().clone() for k, v in model.state_dict().items()}
 
-    for epoch in range(1, MAX_EPOCHS + 1):
+    for epoch in range(1, max_epochs + 1):
         model.train()
         for xb, yb in loader:
             optimizer.zero_grad()
             pred = model(xb)
-            loss = loss_fn(pred, yb)
+            loss = train_loss_fn(pred, yb)
             loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=5.0)
             optimizer.step()
 
         model.eval()
         with torch.no_grad():
-            val_loss = loss_fn(model(X_va), Y_va).item()
+            val_pred = model(X_va)
+            val_mse = val_loss_fn(val_pred, Y_va).item()
 
-        if val_loss < best_val:
-            best_val = val_loss
+        if val_mse < best_val:
+            best_val = val_mse
             best_epoch = epoch
             wait = 0
+            best_state = {k: v.detach().cpu().clone() for k, v in model.state_dict().items()}
         else:
             wait += 1
-            if wait >= PATIENCE:
+            if wait >= patience:
                 break
 
-    return best_val, best_epoch
+    model.load_state_dict(best_state)
+    model.eval()
+    with torch.no_grad():
+        pred_best = model(X_va).detach().cpu().numpy()
+
+    return model, best_val, best_epoch, pred_best
 
 
-# ── Objective ────────────────────────────────────────────────────────────
-def objective(trial):
-    n_layers   = trial.suggest_int("n_layers", 0, 3)
-    hidden_dim = trial.suggest_categorical("hidden_dim", [8, 16, 32, 64]) if n_layers > 0 else 0
-    dropout    = trial.suggest_float("dropout", 0.0, 0.5, step=0.1) if n_layers > 0 else 0.0
-    activation = trial.suggest_categorical("activation", ["ReLU", "LeakyReLU", "SiLU", "Tanh"]) if n_layers > 0 else "ReLU"
-    lr         = trial.suggest_float("lr", 1e-4, 1e-2, log=True)
-    wd         = trial.suggest_float("weight_decay", 1e-5, 1e-2, log=True)
-    batch_size = trial.suggest_categorical("batch_size", [8, 16, 32])
+def sample_params(trial: optuna.Trial) -> Dict:
+    n_layers = trial.suggest_int("n_layers", 0, 3)
 
-    kf = KFold(n_splits=N_FOLDS, shuffle=True, random_state=SEED)
-    fold_losses = []
+    if n_layers == 0:
+        hidden_dim = 0
+        dropout = 0.0
+        activation = "ReLU"
+    else:
+        hidden_dim = trial.suggest_categorical("hidden_dim", [8, 16, 24, 32, 48, 64])
+        dropout = trial.suggest_float("dropout", 0.0, 0.5, step=0.05)
+        activation = trial.suggest_categorical("activation", ["ReLU", "LeakyReLU", "SiLU", "Tanh"])
 
-    for train_idx, val_idx in kf.split(X_train_raw):
-        # 1. Scale Features
-        scaler_x = StandardScaler().fit(X_train_raw[train_idx])
-        X_tr = torch.tensor(scaler_x.transform(X_train_raw[train_idx]), dtype=torch.float32)
-        X_va = torch.tensor(scaler_x.transform(X_train_raw[val_idx]),   dtype=torch.float32)
+    params = {
+        "n_layers": n_layers,
+        "hidden_dim": hidden_dim,
+        "dropout": dropout,
+        "activation": activation,
+        "lr": trial.suggest_float("lr", 3e-4, 2e-2, log=True),
+        "weight_decay": trial.suggest_float("weight_decay", 1e-7, 2e-2, log=True),
+        "batch_size": trial.suggest_categorical("batch_size", [8, 16, 32]),
+        "optimizer": trial.suggest_categorical("optimizer", ["Adam", "AdamW"]),
+        "loss": trial.suggest_categorical("loss", ["MSE", "Huber"]),
+    }
 
-        # 2. Scale Targets (TARGET SCALING)
-        scaler_y = StandardScaler().fit(Y_train_raw[train_idx])
-        Y_tr_scaled = torch.tensor(scaler_y.transform(Y_train_raw[train_idx]), dtype=torch.float32)
-        Y_va_scaled = torch.tensor(scaler_y.transform(Y_train_raw[val_idx]),   dtype=torch.float32)
+    if params["loss"] == "Huber":
+        params["huber_delta"] = trial.suggest_categorical("huber_delta", [0.5, 1.0, 2.0, 4.0])
+    else:
+        params["huber_delta"] = 1.0
 
-        torch.manual_seed(SEED)
-        model = build_model(len(FEATURE_COLS), len(TARGET_COLS),
-                            n_layers, hidden_dim, dropout, activation)
-        val_mse, _ = train_one_fold(model, X_tr, Y_tr_scaled, X_va, Y_va_scaled, lr, wd, batch_size)
-        fold_losses.append(val_mse)
-
-    # Return the mean of SCALED losses (so all targets contributed equally)
-    return np.mean(fold_losses)
+    return params
 
 
-# ── Run Optuna ───────────────────────────────────────────────────────────
-study = optuna.create_study(direction="minimize",
-                            sampler=optuna.samplers.TPESampler(seed=SEED))
-study.optimize(objective, n_trials=N_TRIALS, show_progress_bar=True)
+def fit_and_eval_fold(
+    X_all: np.ndarray,
+    y_all: np.ndarray,
+    train_idx: np.ndarray,
+    val_idx: np.ndarray,
+    params: Dict,
+    seed: int,
+    max_epochs: int,
+    patience: int,
+    keep_member: bool,
+) -> Dict:
+    set_seed(seed)
 
-print("\n" + "=" * 60)
-print("Best trial")
-print("=" * 60)
-best = study.best_trial
-print(f"  CV MSE (Scaled): {best.value:.4f}")
-for k, v in best.params.items():
-    print(f"  {k}: {v}")
+    scaler_x = StandardScaler().fit(X_all[train_idx])
+    scaler_y = StandardScaler().fit(y_all[train_idx])
 
-# ── Final retrain on ALL train data ──────────────────────────────────────
-print("\n" + "=" * 60)
-print("Final retrain on full training set ...")
-print("=" * 60)
-bp = best.params
-n_layers   = bp["n_layers"]
-hidden_dim = bp.get("hidden_dim", 0)
-dropout    = bp.get("dropout", 0.0)
-activation = bp.get("activation", "ReLU")
+    X_tr = torch.tensor(scaler_x.transform(X_all[train_idx]), dtype=torch.float32)
+    Y_tr = torch.tensor(scaler_y.transform(y_all[train_idx]), dtype=torch.float32)
+    X_va = torch.tensor(scaler_x.transform(X_all[val_idx]), dtype=torch.float32)
+    Y_va = torch.tensor(scaler_y.transform(y_all[val_idx]), dtype=torch.float32)
 
-# 1. Re-run CV with best params to collect best epoch per fold
-print("  Determining optimal epoch count from CV ...")
-kf = KFold(n_splits=N_FOLDS, shuffle=True, random_state=SEED)
-fold_best_epochs = []
+    model = build_model(
+        in_dim=X_all.shape[1],
+        out_dim=1,
+        n_layers=params["n_layers"],
+        hidden_dim=params["hidden_dim"],
+        dropout=params["dropout"],
+        activation_name=params["activation"],
+    )
 
-for train_idx, val_idx in kf.split(X_train_raw):
-    scaler_x_f = StandardScaler().fit(X_train_raw[train_idx])
-    scaler_y_f = StandardScaler().fit(Y_train_raw[train_idx])
-    
-    X_tr_f = torch.tensor(scaler_x_f.transform(X_train_raw[train_idx]), dtype=torch.float32)
-    Y_tr_f = torch.tensor(scaler_y_f.transform(Y_train_raw[train_idx]), dtype=torch.float32)
-    
-    X_va_f = torch.tensor(scaler_x_f.transform(X_train_raw[val_idx]),   dtype=torch.float32)
-    Y_va_f = torch.tensor(scaler_y_f.transform(Y_train_raw[val_idx]),   dtype=torch.float32)
-    
-    torch.manual_seed(SEED)
-    m = build_model(len(FEATURE_COLS), len(TARGET_COLS), n_layers, hidden_dim, dropout, activation)
-    _, best_ep = train_one_fold(m, X_tr_f, Y_tr_f, X_va_f, Y_va_f, bp["lr"], bp["weight_decay"], bp["batch_size"])
-    fold_best_epochs.append(best_ep)
+    model, val_mse_scaled, best_epoch, pred_scaled = train_one_fold(
+        model,
+        X_tr,
+        Y_tr,
+        X_va,
+        Y_va,
+        params,
+        max_epochs=max_epochs,
+        patience=patience,
+    )
 
-fixed_epochs = int(np.median(fold_best_epochs))
-print(f"  Fold best epochs: {fold_best_epochs}  →  median = {fixed_epochs}")
+    pred_raw = scaler_y.inverse_transform(pred_scaled)[:, 0]
+    y_true = y_all[val_idx, 0]
 
-# 2. Train on ALL training data for `fixed_epochs`
-scaler_x = StandardScaler().fit(X_train_raw)
-scaler_y = StandardScaler().fit(Y_train_raw)
+    rmse = float(np.sqrt(mean_squared_error(y_true, pred_raw)))
+    mae = float(mean_absolute_error(y_true, pred_raw))
+    r2 = float(r2_score(y_true, pred_raw))
 
-X_tr_all = torch.tensor(scaler_x.transform(X_train_raw), dtype=torch.float32)
-Y_tr_all = torch.tensor(scaler_y.transform(Y_train_raw), dtype=torch.float32)
+    result = {
+        "rmse": rmse,
+        "mae": mae,
+        "r2": r2,
+        "val_mse_scaled": float(val_mse_scaled),
+        "best_epoch": int(best_epoch),
+    }
 
-torch.manual_seed(SEED)
-final_model = build_model(len(FEATURE_COLS), len(TARGET_COLS),
-                          n_layers, hidden_dim, dropout, activation)
+    if keep_member:
+        result["member"] = {
+            "model_state": {k: v.detach().cpu().clone() for k, v in model.state_dict().items()},
+            "scaler_x": scaler_x,
+            "scaler_y": scaler_y,
+            "best_epoch": int(best_epoch),
+        }
 
-optimizer = torch.optim.Adam(final_model.parameters(), lr=bp["lr"], weight_decay=bp["weight_decay"])
-loss_fn = nn.MSELoss()
-dataset = torch.utils.data.TensorDataset(X_tr_all, Y_tr_all)
-loader  = torch.utils.data.DataLoader(dataset, batch_size=bp["batch_size"], shuffle=True)
-
-for epoch in range(1, fixed_epochs + 1):
-    final_model.train()
-    for xb, yb in loader:
-        optimizer.zero_grad()
-        loss_fn(final_model(xb), yb).backward()
-        optimizer.step()
-
-print(f"  Trained for {fixed_epochs} epochs on all {len(X_tr_all)} training samples")
+    return result
 
 
-# ── Global Final Evaluation ──────────────────────────────────────────────────
-print("\n" + "=" * 60)
-print("Final evaluation on test set (original scale)")
-print("=" * 60)
+def make_objective(
+    X_train_all: np.ndarray,
+    y_train_target: np.ndarray,
+    seed: int,
+    folds: int,
+    max_epochs: int,
+    patience: int,
+    stability_penalty: float,
+):
+    def objective(trial: optuna.Trial) -> float:
+        params = sample_params(trial)
 
-final_model.eval()
-X_te = torch.tensor(scaler_x.transform(X_test_raw), dtype=torch.float32)
+        kf = KFold(n_splits=folds, shuffle=True, random_state=seed)
+        fold_rmses: List[float] = []
 
-with torch.no_grad():
-    pred_scaled = final_model(X_te).numpy()
+        for fold_id, (tr_idx, va_idx) in enumerate(kf.split(X_train_all), start=1):
+            fold_result = fit_and_eval_fold(
+                X_all=X_train_all,
+                y_all=y_train_target,
+                train_idx=tr_idx,
+                val_idx=va_idx,
+                params=params,
+                seed=seed + fold_id,
+                max_epochs=max_epochs,
+                patience=patience,
+                keep_member=False,
+            )
+            fold_rmses.append(fold_result["rmse"])
 
-# Inverse-transform to get original interpretation
-pred_raw = scaler_y.inverse_transform(pred_scaled)
+            running_rmse = float(np.mean(fold_rmses))
+            trial.report(running_rmse, step=fold_id)
+            if trial.should_prune():
+                raise optuna.TrialPruned()
 
-for i, col in enumerate(TARGET_COLS):
-    y_true = test_df[col].values
-    y_pred = pred_raw[:, i]
-    
-    rmse = np.sqrt(mean_squared_error(y_true, y_pred))
-    mae  = mean_absolute_error(y_true, y_pred)
-    r2   = r2_score(y_true, y_pred)
-    print(f"  {col:15s}  RMSE={rmse:7.3f}  MAE={mae:7.3f}  R²={r2:.4f}")
+        rmse_mean = float(np.mean(fold_rmses))
+        rmse_std = float(np.std(fold_rmses))
+
+        # Light penalty discourages highly unstable folds.
+        return rmse_mean + stability_penalty * rmse_std
+
+    return objective
 
 
-# ── Save ─────────────────────────────────────────────────────────────────────
-torch.save({
-    "model_state": final_model.state_dict(),
-    "scaler_x": scaler_x,
-    "scaler_y": scaler_y,
-    "feature_cols": FEATURE_COLS,
-    "target_cols": TARGET_COLS,
-    "best_params": bp,
-    "cv_mse_scaled": best.value,
-    "fixed_epochs": fixed_epochs,
-}, "mlp_tuned_checkpoint.pt")
+def train_cv_ensemble(
+    X_train_all: np.ndarray,
+    y_train_target: np.ndarray,
+    params: Dict,
+    seed: int,
+    folds: int,
+    max_epochs: int,
+    patience: int,
+) -> Tuple[List[Dict], Dict]:
+    kf = KFold(n_splits=folds, shuffle=True, random_state=seed)
 
-print("\nModel saved to mlp_tuned_checkpoint.pt")
+    members: List[Dict] = []
+    fold_rmses: List[float] = []
+    fold_maes: List[float] = []
+    fold_r2s: List[float] = []
+    fold_epochs: List[int] = []
+
+    for fold_id, (tr_idx, va_idx) in enumerate(kf.split(X_train_all), start=1):
+        fold_result = fit_and_eval_fold(
+            X_all=X_train_all,
+            y_all=y_train_target,
+            train_idx=tr_idx,
+            val_idx=va_idx,
+            params=params,
+            seed=seed + fold_id,
+            max_epochs=max_epochs,
+            patience=patience,
+            keep_member=True,
+        )
+
+        members.append(fold_result["member"])
+        fold_rmses.append(fold_result["rmse"])
+        fold_maes.append(fold_result["mae"])
+        fold_r2s.append(fold_result["r2"])
+        fold_epochs.append(fold_result["best_epoch"])
+
+        print(
+            f"    Fold {fold_id}/{folds} | RMSE={fold_result['rmse']:.3f} "
+            f"MAE={fold_result['mae']:.3f} R²={fold_result['r2']:.4f} "
+            f"best_epoch={fold_result['best_epoch']}"
+        )
+
+    summary = {
+        "cv_rmse_mean": float(np.mean(fold_rmses)),
+        "cv_rmse_std": float(np.std(fold_rmses)),
+        "cv_mae_mean": float(np.mean(fold_maes)),
+        "cv_r2_mean": float(np.mean(fold_r2s)),
+        "cv_best_epochs": fold_epochs,
+    }
+    return members, summary
+
+
+def predict_with_ensemble(members: List[Dict], params: Dict, X_test_raw: np.ndarray) -> np.ndarray:
+    preds = []
+
+    for member in members:
+        model = build_model(
+            in_dim=X_test_raw.shape[1],
+            out_dim=1,
+            n_layers=params["n_layers"],
+            hidden_dim=params["hidden_dim"],
+            dropout=params["dropout"],
+            activation_name=params["activation"],
+        )
+        model.load_state_dict(member["model_state"])
+        model.eval()
+
+        X_te = torch.tensor(member["scaler_x"].transform(X_test_raw), dtype=torch.float32)
+        with torch.no_grad():
+            pred_scaled = model(X_te).detach().cpu().numpy()
+
+        pred_raw = member["scaler_y"].inverse_transform(pred_scaled)[:, 0]
+        preds.append(pred_raw)
+
+    return np.mean(np.vstack(preds), axis=0)
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Tune MLP baseline for DBP prediction")
+    parser.add_argument("--trials", type=int, default=int(os.getenv("MLP_TUNE_TRIALS", "120")))
+    parser.add_argument("--folds", type=int, default=5)
+    parser.add_argument("--max-epochs", type=int, default=2000)
+    parser.add_argument("--patience", type=int, default=100)
+    parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument(
+        "--targets",
+        type=str,
+        default=",".join(TARGET_COLS),
+        help="Comma-separated target names to tune (default: all)",
+    )
+    parser.add_argument(
+        "--stability-penalty",
+        type=float,
+        default=0.10,
+        help="Objective = mean_rmse + penalty * std_rmse",
+    )
+    parser.add_argument("--out", type=str, default="mlp_tuned_checkpoint_best.pt")
+    return parser.parse_args()
+
+
+def main() -> None:
+    args = parse_args()
+    set_seed(args.seed)
+
+    df = pd.read_csv("DBP_dataset_DWTP_B.csv")
+    train_df = df[df["split"] == "train"].reset_index(drop=True)
+    test_df = df[df["split"] == "test"].reset_index(drop=True)
+
+    X_train_all = train_df[FEATURE_COLS].values.astype(np.float32)
+    X_test_raw = test_df[FEATURE_COLS].values.astype(np.float32)
+    selected_targets = [t.strip() for t in args.targets.split(",") if t.strip()]
+    unknown_targets = sorted(set(selected_targets) - set(TARGET_COLS))
+    if unknown_targets:
+        raise ValueError(f"Unknown targets: {unknown_targets}. Allowed: {TARGET_COLS}")
+
+    print(f"Train: {len(train_df)}, Test: {len(test_df)}")
+    print(f"Features: {len(FEATURE_COLS)}, Targets: {len(TARGET_COLS)}")
+    print(f"Trials per target: {args.trials}, CV folds: {args.folds}")
+    print(f"Max epochs: {args.max_epochs}, patience: {args.patience}\n")
+
+    target_payloads: Dict[str, Dict] = {}
+    test_preds_all = {}
+
+    for target_name in selected_targets:
+        target_idx = TARGET_COLS.index(target_name)
+        print("=" * 72)
+        print(f"Tuning target: {target_name}")
+        print("=" * 72)
+
+        y_train_target = train_df[[target_name]].values.astype(np.float32)
+        y_test_target = test_df[target_name].values
+
+        objective = make_objective(
+            X_train_all=X_train_all,
+            y_train_target=y_train_target,
+            seed=args.seed + target_idx * 1000,
+            folds=args.folds,
+            max_epochs=args.max_epochs,
+            patience=args.patience,
+            stability_penalty=args.stability_penalty,
+        )
+
+        study = optuna.create_study(
+            direction="minimize",
+            sampler=optuna.samplers.TPESampler(seed=args.seed + target_idx),
+            pruner=optuna.pruners.MedianPruner(n_startup_trials=15, n_warmup_steps=2),
+        )
+        study.optimize(objective, n_trials=args.trials, show_progress_bar=True)
+
+        best = study.best_trial
+        best_params = best.params.copy()
+        if "huber_delta" not in best_params:
+            best_params["huber_delta"] = 1.0
+
+        print("\nBest trial summary")
+        print(f"  objective (RMSE + 0.1*std): {best.value:.4f}")
+        for k, v in best_params.items():
+            print(f"  {k}: {v}")
+
+        print("\nTraining CV ensemble with best params ...")
+        members, cv_summary = train_cv_ensemble(
+            X_train_all=X_train_all,
+            y_train_target=y_train_target,
+            params=best_params,
+            seed=args.seed + target_idx * 1000,
+            folds=args.folds,
+            max_epochs=args.max_epochs,
+            patience=args.patience,
+        )
+
+        y_pred_test = predict_with_ensemble(members, best_params, X_test_raw)
+
+        rmse_test = float(np.sqrt(mean_squared_error(y_test_target, y_pred_test)))
+        mae_test = float(mean_absolute_error(y_test_target, y_pred_test))
+        r2_test = float(r2_score(y_test_target, y_pred_test))
+
+        print("\nTest metrics (ensemble)")
+        print(f"  RMSE={rmse_test:.3f}  MAE={mae_test:.3f}  R²={r2_test:.4f}\n")
+
+        target_payloads[target_name] = {
+            "best_params": best_params,
+            "best_objective": float(best.value),
+            "cv_summary": cv_summary,
+            "members": members,
+            "test_metrics": {
+                "rmse": rmse_test,
+                "mae": mae_test,
+                "r2": r2_test,
+            },
+        }
+        test_preds_all[target_name] = y_pred_test
+
+    print("=" * 72)
+    print("Final test summary")
+    print("=" * 72)
+    for target_name in selected_targets:
+        m = target_payloads[target_name]["test_metrics"]
+        print(f"  {target_name:15s} RMSE={m['rmse']:7.3f}  MAE={m['mae']:7.3f}  R²={m['r2']:.4f}")
+
+    torch.save(
+        {
+            "feature_cols": FEATURE_COLS,
+            "target_cols": selected_targets,
+            "target_payloads": target_payloads,
+            "seed": args.seed,
+            "folds": args.folds,
+            "trials": args.trials,
+            "max_epochs": args.max_epochs,
+            "patience": args.patience,
+            "stability_penalty": args.stability_penalty,
+        },
+        args.out,
+    )
+    print(f"\nSaved tuned ensemble checkpoint to {args.out}")
+
+
+if __name__ == "__main__":
+    main()

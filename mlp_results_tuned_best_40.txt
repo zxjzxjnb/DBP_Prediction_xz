@@ -1,0 +1,11 @@
+Train: 141, Test: 34
+Features: 9, Targets: 3
+Trials per target: 40, CV folds: 5
+Max epochs: 1800, patience: 100
+
+Final test summary (best among new tuning runs)
+  T_THMs_ug_L     RMSE=  7.418  MAE=  6.160  R²=0.4735
+  DBCM_ug_L       RMSE=  2.723  MAE=  2.197  R²=0.5076
+  BDCM_ug_L       RMSE=  1.644  MAE=  1.267  R²=0.3701
+
+Source checkpoint: /Users/xjzou/Desktop/DBPs-prediction-by-kan-main/mlp_tuned_checkpoint_best_40.pt

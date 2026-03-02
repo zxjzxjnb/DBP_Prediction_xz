@@ -1,0 +1,95 @@
+Train: 141, Test: 34
+Features: 9, Targets: 3
+Trials per target: 60, CV folds: 5
+Max epochs: 1800, patience: 100
+
+========================================================================
+Tuning target: T_THMs_ug_L
+========================================================================
+
+Best trial summary
+  objective (RMSE + 0.1*std): 7.0092
+  n_layers: 3
+  hidden_dim: 32
+  dropout: 0.1
+  activation: Tanh
+  lr: 0.013928887858115762
+  weight_decay: 0.000617365052142343
+  batch_size: 8
+  optimizer: AdamW
+  loss: Huber
+  huber_delta: 1.0
+
+Training CV ensemble with best params ...
+    Fold 1/5 | RMSE=7.989 MAE=6.063 R²=0.5677 best_epoch=11
+    Fold 2/5 | RMSE=6.724 MAE=5.415 R²=0.6736 best_epoch=9
+    Fold 3/5 | RMSE=6.296 MAE=5.290 R²=0.6626 best_epoch=3
+    Fold 4/5 | RMSE=6.907 MAE=5.028 R²=0.5130 best_epoch=30
+    Fold 5/5 | RMSE=6.849 MAE=5.358 R²=0.6855 best_epoch=15
+
+Test metrics (ensemble)
+  RMSE=7.418  MAE=6.160  R²=0.4735
+
+========================================================================
+Tuning target: DBCM_ug_L
+========================================================================
+
+Best trial summary
+  objective (RMSE + 0.1*std): 2.4054
+  n_layers: 1
+  hidden_dim: 64
+  dropout: 0.4
+  activation: SiLU
+  lr: 0.019678326863275173
+  weight_decay: 0.0002124961071489383
+  batch_size: 16
+  optimizer: AdamW
+  loss: MSE
+  huber_delta: 1.0
+
+Training CV ensemble with best params ...
+    Fold 1/5 | RMSE=1.478 MAE=1.207 R²=0.8142 best_epoch=6
+    Fold 2/5 | RMSE=2.565 MAE=2.071 R²=0.6647 best_epoch=1
+    Fold 3/5 | RMSE=2.682 MAE=2.316 R²=0.6743 best_epoch=3
+    Fold 4/5 | RMSE=2.467 MAE=1.988 R²=0.6766 best_epoch=38
+    Fold 5/5 | RMSE=2.612 MAE=1.934 R²=0.5808 best_epoch=11
+
+Test metrics (ensemble)
+  RMSE=2.723  MAE=2.197  R²=0.5076
+
+========================================================================
+Tuning target: BDCM_ug_L
+========================================================================
+
+Best trial summary
+  objective (RMSE + 0.1*std): 1.7524
+  n_layers: 1
+  hidden_dim: 32
+  dropout: 0.5
+  activation: Tanh
+  lr: 0.004131650050946104
+  weight_decay: 9.196787150185437e-05
+  batch_size: 8
+  optimizer: Adam
+  loss: Huber
+  huber_delta: 1.0
+
+Training CV ensemble with best params ...
+    Fold 1/5 | RMSE=1.904 MAE=1.498 R²=0.5411 best_epoch=44
+    Fold 2/5 | RMSE=1.737 MAE=1.289 R²=0.3646 best_epoch=42
+    Fold 3/5 | RMSE=2.274 MAE=1.702 R²=0.3339 best_epoch=150
+    Fold 4/5 | RMSE=1.474 MAE=0.968 R²=0.3056 best_epoch=3
+    Fold 5/5 | RMSE=1.189 MAE=0.892 R²=0.6620 best_epoch=76
+
+Test metrics (ensemble)
+  RMSE=1.663  MAE=1.275  R²=0.3556
+
+========================================================================
+Final test summary (all targets)
+========================================================================
+  T_THMs_ug_L     RMSE=  7.418  MAE=  6.160  R²=0.4735
+  DBCM_ug_L       RMSE=  2.723  MAE=  2.197  R²=0.5076
+  BDCM_ug_L       RMSE=  1.663  MAE=  1.275  R²=0.3556
+
+Saved tuned ensemble checkpoint to /Users/xjzou/Desktop/DBPs-prediction-by-kan-main/mlp_tuned_checkpoint_best.pt
+
