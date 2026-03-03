@@ -1,0 +1,32 @@
+Train: 141, Test: 34
+Features: 9, Targets: 3
+Trials: 30, CV folds: 5
+Max epochs: 1200, patience: 100
+
+
+Best trial summary
+  objective (RMSE_macro + penalty*std): 4.1097
+  hidden_dims_key: 24-12
+  grid: 3
+  k: 5
+  lr: 0.007925679393282526
+  weight_decay: 0.0032772515550703886
+  batch_size: 16
+  optimizer: AdamW
+  hidden_dims: (24, 12)
+
+Training CV ensemble with best params ...
+    Fold 1/5 | RMSE(macro)=4.789 MAE(macro)=3.766 R²(macro)=0.3850 best_epoch=13
+    Fold 2/5 | RMSE(macro)=3.850 MAE(macro)=2.943 R²(macro)=0.5869 best_epoch=9
+    Fold 3/5 | RMSE(macro)=3.627 MAE(macro)=2.989 R²(macro)=0.4648 best_epoch=11
+    Fold 4/5 | RMSE(macro)=3.988 MAE(macro)=3.053 R²(macro)=0.4230 best_epoch=13
+    Fold 5/5 | RMSE(macro)=4.098 MAE(macro)=3.233 R²(macro)=0.5803 best_epoch=11
+
+============================================================
+Final evaluation on test set (original scale)
+============================================================
+  T_THMs_ug_L      RMSE=  7.444  MAE=  6.029  R²=0.4699
+  DBCM_ug_L        RMSE=  2.782  MAE=  2.249  R²=0.4859
+  BDCM_ug_L        RMSE=  1.579  MAE=  1.247  R²=0.4192
+
+Saved tuned KAN checkpoint to /Users/xjzou/Desktop/DBPs-prediction-by-kan-main/kan_tuned_checkpoint_best.pt

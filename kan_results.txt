@@ -1,0 +1,29 @@
+Train samples: 141,  Test samples: 34
+Features: 9,   Targets: 3
+Train subset: 119, Validation: 22
+
+Model parameters: 17,171
+MultKAN(
+  (act_fun): ModuleList(
+    (0-2): 3 x KANLayer(
+      (base_fun): SiLU()
+    )
+  )
+  (base_fun): SiLU()
+  (symbolic_fun): ModuleList(
+    (0-2): 3 x Symbolic_KANLayer()
+  )
+)
+Epoch  100 | train MSE: 0.0017 | val MSE: 1.3773 | patience: 89/100
+Epoch  111 | train MSE: 0.0012 | val MSE: 1.3790 | patience: 100/100
+
+Early stopping at epoch 111
+
+============================================================
+Final evaluation on test set (original scale)
+============================================================
+  T_THMs_ug_L      RMSE=  8.152  MAE=  6.805  R²=0.3641
+  DBCM_ug_L        RMSE=  3.090  MAE=  2.444  R²=0.3658
+  BDCM_ug_L        RMSE=  1.736  MAE=  1.405  R²=0.2979
+
+Model saved to kan_checkpoint.pt
