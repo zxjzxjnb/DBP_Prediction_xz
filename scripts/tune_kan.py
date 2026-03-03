@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import os
+from pathlib import Path
 from typing import Dict, List, Tuple
 
 import numpy as np
@@ -35,6 +36,8 @@ FEATURE_COLS = [
     "Br_mg_L", "TOC_mg_L", "UV254_A_cm", "temp_C",
 ]
 TARGET_COLS = ["T_THMs_ug_L", "DBCM_ug_L", "BDCM_ug_L"]
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+DATA_PATH = PROJECT_ROOT / "data" / "DBP_dataset_DWTP_B.csv"
 
 
 def set_seed(seed: int) -> None:
@@ -334,7 +337,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--patience", type=int, default=100)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--stability-penalty", type=float, default=0.10)
-    parser.add_argument("--out", type=str, default="kan_tuned_checkpoint.pt")
+    parser.add_argument(
+        "--out",
+        type=str,
+        default=str(PROJECT_ROOT / "checkpoints" / "kan_tuned_checkpoint.pt"),
+    )
     return parser.parse_args()
 
 
@@ -342,7 +349,7 @@ def main() -> None:
     args = parse_args()
     set_seed(args.seed)
 
-    df = pd.read_csv("DBP_dataset_DWTP_B.csv")
+    df = pd.read_csv(DATA_PATH)
     train_df = df[df["split"] == "train"].reset_index(drop=True)
     test_df = df[df["split"] == "test"].reset_index(drop=True)
 
@@ -422,6 +429,11 @@ def main() -> None:
         print(f"  {target:15s}  RMSE={rmse:7.3f}  MAE={mae:7.3f}  R²={r2:.4f}")
         test_metrics[target] = {"rmse": rmse, "mae": mae, "r2": r2}
 
+    out_path = Path(args.out)
+    if not out_path.is_absolute():
+        out_path = PROJECT_ROOT / out_path
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+
     torch.save(
         {
             "feature_cols": FEATURE_COLS,
@@ -438,9 +450,9 @@ def main() -> None:
             "patience": args.patience,
             "stability_penalty": args.stability_penalty,
         },
-        args.out,
+        out_path,
     )
-    print(f"\nSaved tuned KAN checkpoint to {args.out}")
+    print(f"\nSaved tuned KAN checkpoint to {out_path}")
 
 
 if __name__ == "__main__":

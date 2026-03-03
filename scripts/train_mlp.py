@@ -3,6 +3,8 @@ MLP baseline for DBP prediction on DBP_dataset_DWTP_B.csv
 Predicts: T_THMs, DBCM, BDCM from 9 water quality features.
 """
 
+from pathlib import Path
+
 import torch
 import torch.nn as nn
 import pandas as pd
@@ -25,6 +27,9 @@ BATCH_SIZE = 16
 MAX_EPOCHS = 2000
 PATIENCE = 100                # early-stopping patience
 VAL_FRACTION = 0.15           # hold-out validation fraction from training data only
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+DATA_PATH = PROJECT_ROOT / "data" / "DBP_dataset_DWTP_B.csv"
+CHECKPOINT_PATH = PROJECT_ROOT / "checkpoints" / "mlp_checkpoint.pt"
 
 # ── Data loading ─────────────────────────────────────────────────────────────
 FEATURE_COLS = [
@@ -33,7 +38,7 @@ FEATURE_COLS = [
 ]
 TARGET_COLS = ["T_THMs_ug_L", "DBCM_ug_L", "BDCM_ug_L"]
 
-df = pd.read_csv("DBP_dataset_DWTP_B.csv")
+df = pd.read_csv(DATA_PATH)
 train_df = df[df["split"] == "train"]
 test_df  = df[df["split"] == "test"]
 
@@ -151,6 +156,7 @@ for i, name in enumerate(TARGET_COLS):
     print(f"  {name:15s}  RMSE={rmse:7.3f}  MAE={mae:7.3f}  R²={r2:.4f}")
 
 # ── Save model ───────────────────────────────────────────────────────────────
+CHECKPOINT_PATH.parent.mkdir(parents=True, exist_ok=True)
 torch.save({
     "model_state": best_state,
     "scaler_x": scaler_x,
@@ -163,5 +169,5 @@ torch.save({
         "lr": LR,
         "weight_decay": WEIGHT_DECAY,
     },
-}, "mlp_checkpoint.pt")
-print("\nModel saved to mlp_checkpoint.pt")
+}, CHECKPOINT_PATH)
+print(f"\nModel saved to {CHECKPOINT_PATH}")
