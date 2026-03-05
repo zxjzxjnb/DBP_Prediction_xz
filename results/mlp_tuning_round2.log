@@ -1,0 +1,71 @@
+[2026-03-04 16:43] Round-2 tuning started
+Command:
+  python scripts/tune_mlp.py --trials 120 --max-epochs 2000 --patience 120 --stability-penalty 0.05 --out checkpoints/mlp_tuned_checkpoint_round2.pt > results/mlp_tuning_round2.log 2>&1
+
+Result:
+  Failed in base env: ModuleNotFoundError: No module named 'numpy'
+
+[2026-03-04 16:44] Retried in conda env
+Command:
+  conda run -n kan_model python scripts/tune_mlp.py --trials 120 --max-epochs 2000 --patience 120 --stability-penalty 0.05 --out checkpoints/mlp_tuned_checkpoint_round2.pt > results/mlp_tuning_round2.log 2>&1
+
+Result:
+  Process output stayed fully buffered under redirection/conda-run in this run; file remained empty.
+  Switched to direct env python with unbuffered output for reliable monitoring.
+
+[2026-03-04 17:07] Focused deep tuning for BDCM (seed=42)
+Command:
+  /Users/xjzou/miniconda3/envs/kan_model/bin/python -u scripts/tune_mlp.py --targets BDCM_ug_L --trials 180 --max-epochs 2200 --patience 150 --stability-penalty 0.05 --seed 42 --out checkpoints/mlp_tuned_checkpoint_bdcm_round2_seed42.pt
+
+Best trial summary:
+  objective (RMSE + 0.05*std): 1.647764
+  n_layers: 3
+  hidden_dim: 48
+  dropout: 0.35
+  activation: Tanh
+  lr: 0.017610041295724913
+  weight_decay: 0.006279206424611077
+  batch_size: 16
+  optimizer: Adam
+  loss: Huber
+  huber_delta: 0.5
+
+Test metrics (BDCM, ensemble):
+  RMSE=1.646496
+  MAE=1.288593
+  R2=0.368445
+
+[2026-03-04 17:11] Stability rerun for BDCM (seed=2024)
+Command:
+  /Users/xjzou/miniconda3/envs/kan_model/bin/python -u scripts/tune_mlp.py --targets BDCM_ug_L --trials 120 --max-epochs 2200 --patience 150 --stability-penalty 0.05 --seed 2024 --out checkpoints/mlp_tuned_checkpoint_bdcm_round2_seed2024.pt
+
+Issue found and fixed:
+  When best trial had n_layers=0, script crashed during CV ensemble stage:
+    KeyError: 'hidden_dim'
+  Fix applied in scripts/tune_mlp.py:
+    - Added normalize_best_params(...)
+    - Backfills hidden_dim/dropout/activation for n_layers=0
+    - Uses actual stability penalty in objective print line
+
+Rerun (after fix) best trial summary:
+  objective (RMSE + 0.05*std): 1.733795
+  n_layers: 0
+  hidden_dim: 0
+  dropout: 0.0
+  activation: ReLU
+  lr: 0.018263376675320055
+  weight_decay: 7.146840922720873e-06
+  batch_size: 16
+  optimizer: AdamW
+  loss: Huber
+  huber_delta: 0.5
+
+Test metrics (BDCM, ensemble):
+  RMSE=1.692728
+  MAE=1.279375
+  R2=0.332481
+
+Artifacts:
+  checkpoints/mlp_tuned_checkpoint_bdcm_round2_seed42.pt
+  checkpoints/mlp_tuned_checkpoint_bdcm_round2_seed2024.pt
+  results/mlp_results_tuned_bdcm_round2.txt

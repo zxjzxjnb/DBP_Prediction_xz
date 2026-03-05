@@ -1,0 +1,29 @@
+Round-2 BDCM tuning summary (2026-03-04)
+Script: scripts/tune_mlp.py
+Search: Optuna TPE + MedianPruner, 5-fold CV, objective = mean(RMSE) + 0.05*std
+
+Seed 42 (trials=180, max_epochs=2200, patience=150)
+  Best objective: 1.647764
+  Best params:
+    n_layers=3, hidden_dim=48, dropout=0.35, activation=Tanh
+    lr=0.0176100413, weight_decay=0.0062792064
+    batch_size=16, optimizer=Adam, loss=Huber, huber_delta=0.5
+  Test metrics (BDCM): RMSE=1.646496, MAE=1.288593, R2=0.368445
+  Checkpoint: checkpoints/mlp_tuned_checkpoint_bdcm_round2_seed42.pt
+
+Seed 2024 (trials=120, max_epochs=2200, patience=150)
+  Best objective: 1.733795
+  Best params:
+    n_layers=0, hidden_dim=0, dropout=0.0, activation=ReLU
+    lr=0.0182633767, weight_decay=0.0000071468
+    batch_size=16, optimizer=AdamW, loss=Huber, huber_delta=0.5
+  Test metrics (BDCM): RMSE=1.692728, MAE=1.279375, R2=0.332481
+  Checkpoint: checkpoints/mlp_tuned_checkpoint_bdcm_round2_seed2024.pt
+
+Comparison to previous best files:
+  checkpoints/mlp_tuned_checkpoint_best.pt     -> RMSE=1.663165, R2=0.355593
+  checkpoints/mlp_tuned_checkpoint_best_40.pt  -> RMSE=1.644361, R2=0.370082
+
+Notes:
+  - Bug fixed in scripts/tune_mlp.py: when best trial has n_layers=0, best_params now backfills
+    hidden_dim/dropout/activation to avoid KeyError during CV ensemble training.

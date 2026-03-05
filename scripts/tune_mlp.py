@@ -180,6 +180,20 @@ def sample_params(trial: optuna.Trial) -> Dict:
     return params
 
 
+def normalize_best_params(params: Dict) -> Dict:
+    """Backfill optional keys for configurations that skip hidden layers."""
+    normalized = params.copy()
+    n_layers = int(normalized.get("n_layers", 0))
+
+    if n_layers == 0:
+        normalized.setdefault("hidden_dim", 0)
+        normalized.setdefault("dropout", 0.0)
+        normalized.setdefault("activation", "ReLU")
+
+    normalized.setdefault("huber_delta", 1.0)
+    return normalized
+
+
 def fit_and_eval_fold(
     X_all: np.ndarray,
     y_all: np.ndarray,
@@ -444,12 +458,10 @@ def main() -> None:
         study.optimize(objective, n_trials=args.trials, show_progress_bar=True)
 
         best = study.best_trial
-        best_params = best.params.copy()
-        if "huber_delta" not in best_params:
-            best_params["huber_delta"] = 1.0
+        best_params = normalize_best_params(best.params.copy())
 
         print("\nBest trial summary")
-        print(f"  objective (RMSE + 0.1*std): {best.value:.4f}")
+        print(f"  objective (RMSE + {args.stability_penalty:g}*std): {best.value:.4f}")
         for k, v in best_params.items():
             print(f"  {k}: {v}")
 
