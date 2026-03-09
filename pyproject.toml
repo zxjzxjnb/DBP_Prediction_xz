@@ -1,0 +1,63 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dbp-prediction"
+version = "0.1.0"
+description = "Predicting disinfection by-products (DBPs) in drinking water with MLP and KAN models"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.9"
+authors = [
+    {name = "Xiaojie Zou"},
+]
+dependencies = [
+    "numpy>=1.26",
+    "pandas>=2.2",
+    "scikit-learn>=1.5",
+    "torch>=2.0",
+    "optuna>=4.0",
+    "pykan>=0.2",
+    "matplotlib>=3.9",
+    "tqdm>=4.60",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.4",
+    "pre-commit>=3.0",
+]
+
+[project.scripts]
+dbp-train-mlp = "dbp_prediction.cli.train_mlp:main"
+dbp-train-kan = "dbp_prediction.cli.train_kan:main"
+dbp-tune-mlp = "dbp_prediction.cli.tune_mlp:main"
+dbp-tune-kan = "dbp_prediction.cli.tune_kan:main"
+dbp-tune-kan-pt = "dbp_prediction.cli.tune_kan_per_target:main"
+dbp-compare = "dbp_prediction.cli.compare_kan_paradigms:main"
+dbp-sweep = "dbp_prediction.cli.sweep_kan_paradigms:main"
+dbp-report = "dbp_prediction.cli.generate_report:main"
+
+[tool.setuptools.packages.find]
+include = ["dbp_prediction*"]
+
+# ── Ruff (linter + formatter) ──────────────────────────────────────────────
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "UP", "B", "SIM"]
+ignore = ["E501"]  # line-length handled by formatter
+
+[tool.ruff.lint.isort]
+known-first-party = ["dbp_prediction"]
+
+# ── Pytest ─────────────────────────────────────────────────────────────────
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-v --tb=short"

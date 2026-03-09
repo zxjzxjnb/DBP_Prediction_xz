@@ -10,6 +10,14 @@ data.csv
 __pycache__/
 *.pyc
 *.pyo
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
 
 # Model checkpoints
 *.pt
@@ -19,3 +27,10 @@ __pycache__/
 
 # Jupyter
 .ipynb_checkpoints/
+
+# IDE
+.vscode/
+.idea/
+
+# Environment
+.env
