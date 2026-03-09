@@ -13,7 +13,7 @@ Predicting disinfection by-products (DBPs) in drinking water with MLP and KAN ba
 ## Dataset
 
 - `data/DBP_dataset_DWTP_B.csv`
-- 176 samples (141 train / 35 test), 9 input features, 3 targets:
+- 175 samples (141 train / 34 test), 9 input features, 3 targets:
   `T_THMs_ug_L`, `DBCM_ug_L`, `BDCM_ug_L`
 
 ## Usage
@@ -42,10 +42,28 @@ Train KAN:
 python scripts/train_kan.py
 ```
 
-Tune KAN:
+Tune KAN (multi-output):
 
 ```bash
 python scripts/tune_kan.py --trials 30
+```
+
+Tune KAN (per-target):
+
+```bash
+python scripts/tune_kan_per_target.py --trials 30
+```
+
+Compare KAN paradigms:
+
+```bash
+python scripts/compare_kan_paradigms.py
+```
+
+Sweep KAN paradigms across multiple random seeds:
+
+```bash
+python scripts/sweep_kan_paradigms.py --seeds 42,2024,3407,7777,10086 --trials 30 --skip-existing
 ```
 
 All scripts read data from `data/` and save checkpoints to `checkpoints/` by default.

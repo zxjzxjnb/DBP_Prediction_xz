@@ -1,10 +1,9 @@
 """
-Optuna tuning for a multi-output KAN on DBP_dataset_DWTP_B.csv.
+Optuna tuning for per-target KAN models on DBP_dataset_DWTP_B.csv.
 
-Fairness constraints (aligned with train_mlp.py/train_kan.py):
-  - Only training split is used for hyperparameter search.
-  - Feature/target scalers are fit on each fold's training subset only.
-  - Test split is used once at the very end for final reporting.
+This script complements scripts/tune_kan.py:
+  - tune_kan.py keeps one multi-output KAN for all 3 targets.
+  - tune_kan_per_target.py tunes one KAN ensemble per target.
 """
 
 from __future__ import annotations
@@ -39,6 +38,15 @@ TARGET_COLS = ["T_THMs_ug_L", "DBCM_ug_L", "BDCM_ug_L"]
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DATA_PATH = PROJECT_ROOT / "data" / "DBP_dataset_DWTP_B.csv"
 
+HIDDEN_DIMS_MAP = {
+    "8": (8,),
+    "16": (16,),
+    "32": (32,),
+    "16-8": (16, 8),
+    "24-12": (24, 12),
+    "32-16": (32, 16),
+}
+
 
 def set_seed(seed: int) -> None:
     torch.manual_seed(seed)
@@ -62,8 +70,16 @@ def build_kan(in_dim: int, out_dim: int, params: Dict, seed: int) -> nn.Module:
 
 def make_optimizer(model: nn.Module, params: Dict) -> torch.optim.Optimizer:
     if params["optimizer"] == "AdamW":
-        return torch.optim.AdamW(model.parameters(), lr=params["lr"], weight_decay=params["weight_decay"])
-    return torch.optim.Adam(model.parameters(), lr=params["lr"], weight_decay=params["weight_decay"])
+        return torch.optim.AdamW(
+            model.parameters(),
+            lr=params["lr"],
+            weight_decay=params["weight_decay"],
+        )
+    return torch.optim.Adam(
+        model.parameters(),
+        lr=params["lr"],
+        weight_decay=params["weight_decay"],
+    )
 
 
 def train_one_fold(
@@ -126,21 +142,11 @@ def train_one_fold(
 def sample_params(trial: optuna.Trial) -> Dict:
     hidden_dims_key = trial.suggest_categorical(
         "hidden_dims_key",
-        ["8", "16", "32", "16-8", "24-12", "32-16"],
+        list(HIDDEN_DIMS_MAP.keys()),
     )
-    hidden_dims_map = {
-        "8": (8,),
-        "16": (16,),
-        "32": (32,),
-        "16-8": (16, 8),
-        "24-12": (24, 12),
-        "32-16": (32, 16),
-    }
-    hidden_dims = hidden_dims_map[hidden_dims_key]
-
     return {
         "hidden_dims_key": hidden_dims_key,
-        "hidden_dims": hidden_dims,
+        "hidden_dims": HIDDEN_DIMS_MAP[hidden_dims_key],
         "grid": trial.suggest_categorical("grid", [3, 5, 8]),
         "k": trial.suggest_categorical("k", [3, 5]),
         "lr": trial.suggest_float("lr", 2e-4, 8e-3, log=True),
@@ -150,28 +156,16 @@ def sample_params(trial: optuna.Trial) -> Dict:
     }
 
 
-def fold_metrics_raw(y_true_raw: np.ndarray, y_pred_raw: np.ndarray) -> Dict:
-    rmse_per_target = []
-    mae_per_target = []
-    r2_per_target = []
-    for i in range(y_true_raw.shape[1]):
-        rmse_per_target.append(float(np.sqrt(mean_squared_error(y_true_raw[:, i], y_pred_raw[:, i]))))
-        mae_per_target.append(float(mean_absolute_error(y_true_raw[:, i], y_pred_raw[:, i])))
-        r2_per_target.append(float(r2_score(y_true_raw[:, i], y_pred_raw[:, i])))
-
-    return {
-        "rmse_per_target": rmse_per_target,
-        "mae_per_target": mae_per_target,
-        "r2_per_target": r2_per_target,
-        "rmse_macro": float(np.mean(rmse_per_target)),
-        "mae_macro": float(np.mean(mae_per_target)),
-        "r2_macro": float(np.mean(r2_per_target)),
-    }
+def normalize_best_params(params: Dict) -> Dict:
+    normalized = params.copy()
+    key = normalized.get("hidden_dims_key", normalized.get("hidden_dims"))
+    normalized["hidden_dims"] = HIDDEN_DIMS_MAP[key]
+    return normalized
 
 
 def fit_and_eval_fold(
     X_all: np.ndarray,
-    Y_all: np.ndarray,
+    y_all: np.ndarray,
     train_idx: np.ndarray,
     val_idx: np.ndarray,
     params: Dict,
@@ -183,14 +177,19 @@ def fit_and_eval_fold(
     set_seed(seed)
 
     scaler_x = StandardScaler().fit(X_all[train_idx])
-    scaler_y = StandardScaler().fit(Y_all[train_idx])
+    scaler_y = StandardScaler().fit(y_all[train_idx])
 
     X_tr = torch.tensor(scaler_x.transform(X_all[train_idx]), dtype=torch.float32)
-    Y_tr = torch.tensor(scaler_y.transform(Y_all[train_idx]), dtype=torch.float32)
+    Y_tr = torch.tensor(scaler_y.transform(y_all[train_idx]), dtype=torch.float32)
     X_va = torch.tensor(scaler_x.transform(X_all[val_idx]), dtype=torch.float32)
-    Y_va = torch.tensor(scaler_y.transform(Y_all[val_idx]), dtype=torch.float32)
+    Y_va = torch.tensor(scaler_y.transform(y_all[val_idx]), dtype=torch.float32)
 
-    model = build_kan(in_dim=X_all.shape[1], out_dim=Y_all.shape[1], params=params, seed=seed)
+    model = build_kan(
+        in_dim=X_all.shape[1],
+        out_dim=1,
+        params=params,
+        seed=seed,
+    )
     model, val_mse_scaled, best_epoch, pred_scaled = train_one_fold(
         model=model,
         X_tr=X_tr,
@@ -202,27 +201,29 @@ def fit_and_eval_fold(
         patience=patience,
     )
 
-    y_pred_raw = scaler_y.inverse_transform(pred_scaled)
-    y_true_raw = Y_all[val_idx]
-    metrics = fold_metrics_raw(y_true_raw, y_pred_raw)
+    pred_raw = scaler_y.inverse_transform(pred_scaled)[:, 0]
+    y_true = y_all[val_idx, 0]
 
     result = {
+        "rmse": float(np.sqrt(mean_squared_error(y_true, pred_raw))),
+        "mae": float(mean_absolute_error(y_true, pred_raw)),
+        "r2": float(r2_score(y_true, pred_raw)),
         "val_mse_scaled": float(val_mse_scaled),
         "best_epoch": int(best_epoch),
-        **metrics,
     }
     if keep_member:
         result["member"] = {
             "model_state": {k: v.detach().cpu().clone() for k, v in model.state_dict().items()},
             "scaler_x": scaler_x,
             "scaler_y": scaler_y,
+            "best_epoch": int(best_epoch),
         }
     return result
 
 
 def make_objective(
     X_train_all: np.ndarray,
-    Y_train_all: np.ndarray,
+    y_train_target: np.ndarray,
     seed: int,
     folds: int,
     max_epochs: int,
@@ -232,12 +233,12 @@ def make_objective(
     def objective(trial: optuna.Trial) -> float:
         params = sample_params(trial)
         kf = KFold(n_splits=folds, shuffle=True, random_state=seed)
-        fold_scores: List[float] = []
+        fold_rmses: List[float] = []
 
         for fold_id, (tr_idx, va_idx) in enumerate(kf.split(X_train_all), start=1):
             fold_result = fit_and_eval_fold(
                 X_all=X_train_all,
-                Y_all=Y_train_all,
+                y_all=y_train_target,
                 train_idx=tr_idx,
                 val_idx=va_idx,
                 params=params,
@@ -246,23 +247,23 @@ def make_objective(
                 patience=patience,
                 keep_member=False,
             )
-            fold_scores.append(fold_result["rmse_macro"])
+            fold_rmses.append(fold_result["rmse"])
 
-            running = float(np.mean(fold_scores))
-            trial.report(running, step=fold_id)
+            running_rmse = float(np.mean(fold_rmses))
+            trial.report(running_rmse, step=fold_id)
             if trial.should_prune():
                 raise optuna.TrialPruned()
 
-        score_mean = float(np.mean(fold_scores))
-        score_std = float(np.std(fold_scores))
-        return score_mean + stability_penalty * score_std
+        rmse_mean = float(np.mean(fold_rmses))
+        rmse_std = float(np.std(fold_rmses))
+        return rmse_mean + stability_penalty * rmse_std
 
     return objective
 
 
 def train_cv_ensemble(
     X_train_all: np.ndarray,
-    Y_train_all: np.ndarray,
+    y_train_target: np.ndarray,
     params: Dict,
     seed: int,
     folds: int,
@@ -279,7 +280,7 @@ def train_cv_ensemble(
     for fold_id, (tr_idx, va_idx) in enumerate(kf.split(X_train_all), start=1):
         fold_result = fit_and_eval_fold(
             X_all=X_train_all,
-            Y_all=Y_train_all,
+            y_all=y_train_target,
             train_idx=tr_idx,
             val_idx=va_idx,
             params=params,
@@ -289,33 +290,32 @@ def train_cv_ensemble(
             keep_member=True,
         )
         members.append(fold_result["member"])
-        fold_rmses.append(fold_result["rmse_macro"])
-        fold_maes.append(fold_result["mae_macro"])
-        fold_r2s.append(fold_result["r2_macro"])
+        fold_rmses.append(fold_result["rmse"])
+        fold_maes.append(fold_result["mae"])
+        fold_r2s.append(fold_result["r2"])
         fold_epochs.append(fold_result["best_epoch"])
         print(
-            f"    Fold {fold_id}/{folds} | RMSE(macro)={fold_result['rmse_macro']:.3f} "
-            f"MAE(macro)={fold_result['mae_macro']:.3f} "
-            f"R²(macro)={fold_result['r2_macro']:.4f} "
+            f"    Fold {fold_id}/{folds} | RMSE={fold_result['rmse']:.3f} "
+            f"MAE={fold_result['mae']:.3f} R²={fold_result['r2']:.4f} "
             f"best_epoch={fold_result['best_epoch']}"
         )
 
     summary = {
-        "cv_rmse_macro_mean": float(np.mean(fold_rmses)),
-        "cv_rmse_macro_std": float(np.std(fold_rmses)),
-        "cv_mae_macro_mean": float(np.mean(fold_maes)),
-        "cv_r2_macro_mean": float(np.mean(fold_r2s)),
+        "cv_rmse_mean": float(np.mean(fold_rmses)),
+        "cv_rmse_std": float(np.std(fold_rmses)),
+        "cv_mae_mean": float(np.mean(fold_maes)),
+        "cv_r2_mean": float(np.mean(fold_r2s)),
         "cv_best_epochs": fold_epochs,
     }
     return members, summary
 
 
-def predict_with_ensemble(members: List[Dict], params: Dict, X_test_raw: np.ndarray, out_dim: int) -> np.ndarray:
+def predict_with_ensemble(members: List[Dict], params: Dict, X_test_raw: np.ndarray) -> np.ndarray:
     preds = []
     for member in members:
         model = build_kan(
             in_dim=X_test_raw.shape[1],
-            out_dim=out_dim,
+            out_dim=1,
             params=params,
             seed=1,
         )
@@ -324,23 +324,34 @@ def predict_with_ensemble(members: List[Dict], params: Dict, X_test_raw: np.ndar
         X_te = torch.tensor(member["scaler_x"].transform(X_test_raw), dtype=torch.float32)
         with torch.no_grad():
             pred_scaled = model(X_te).detach().cpu().numpy()
-        pred_raw = member["scaler_y"].inverse_transform(pred_scaled)
+        pred_raw = member["scaler_y"].inverse_transform(pred_scaled)[:, 0]
         preds.append(pred_raw)
-    return np.mean(np.stack(preds, axis=0), axis=0)
+    return np.mean(np.vstack(preds), axis=0)
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Tune a multi-output KAN baseline for DBP prediction")
+    parser = argparse.ArgumentParser(description="Tune per-target KAN models for DBP prediction")
     parser.add_argument("--trials", type=int, default=int(os.getenv("KAN_TUNE_TRIALS", "60")))
     parser.add_argument("--folds", type=int, default=5)
     parser.add_argument("--max-epochs", type=int, default=1400)
     parser.add_argument("--patience", type=int, default=100)
     parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--stability-penalty", type=float, default=0.10)
+    parser.add_argument(
+        "--targets",
+        type=str,
+        default=",".join(TARGET_COLS),
+        help="Comma-separated target names to tune (default: all)",
+    )
+    parser.add_argument(
+        "--stability-penalty",
+        type=float,
+        default=0.10,
+        help="Objective = mean_rmse + penalty * std_rmse",
+    )
     parser.add_argument(
         "--out",
         type=str,
-        default=str(PROJECT_ROOT / "checkpoints" / "kan_tuned_checkpoint.pt"),
+        default=str(PROJECT_ROOT / "checkpoints" / "kan_tuned_per_target_checkpoint.pt"),
     )
     return parser.parse_args()
 
@@ -354,80 +365,95 @@ def main() -> None:
     test_df = df[df["split"] == "test"].reset_index(drop=True)
 
     X_train_all = train_df[FEATURE_COLS].values.astype(np.float32)
-    Y_train_all = train_df[TARGET_COLS].values.astype(np.float32)
     X_test_raw = test_df[FEATURE_COLS].values.astype(np.float32)
-    Y_test_raw = test_df[TARGET_COLS].values
+
+    selected_targets = [t.strip() for t in args.targets.split(",") if t.strip()]
+    unknown_targets = sorted(set(selected_targets) - set(TARGET_COLS))
+    if unknown_targets:
+        raise ValueError(f"Unknown targets: {unknown_targets}. Allowed: {TARGET_COLS}")
 
     print(f"Train: {len(train_df)}, Test: {len(test_df)}")
     print(f"Features: {len(FEATURE_COLS)}, Targets: {len(TARGET_COLS)}")
-    print(f"Trials: {args.trials}, CV folds: {args.folds}")
+    print(f"Trials per target: {args.trials}, CV folds: {args.folds}")
     print(f"Max epochs: {args.max_epochs}, patience: {args.patience}\n")
 
-    objective = make_objective(
-        X_train_all=X_train_all,
-        Y_train_all=Y_train_all,
-        seed=args.seed,
-        folds=args.folds,
-        max_epochs=args.max_epochs,
-        patience=args.patience,
-        stability_penalty=args.stability_penalty,
-    )
+    target_payloads: Dict[str, Dict] = {}
 
-    study = optuna.create_study(
-        direction="minimize",
-        sampler=optuna.samplers.TPESampler(seed=args.seed),
-        pruner=optuna.pruners.MedianPruner(n_startup_trials=10, n_warmup_steps=2),
-    )
-    study.optimize(objective, n_trials=args.trials, show_progress_bar=True)
+    for target_name in selected_targets:
+        target_idx = TARGET_COLS.index(target_name)
+        print("=" * 72)
+        print(f"Tuning target: {target_name}")
+        print("=" * 72)
 
-    best = study.best_trial
-    best_params = best.params.copy()
-    hidden_dims_map = {
-        "8": (8,),
-        "16": (16,),
-        "32": (32,),
-        "16-8": (16, 8),
-        "24-12": (24, 12),
-        "32-16": (32, 16),
-    }
-    key = best_params.get("hidden_dims_key", best_params.get("hidden_dims"))
-    best_params["hidden_dims"] = hidden_dims_map[key]
+        y_train_target = train_df[[target_name]].values.astype(np.float32)
+        y_test_target = test_df[target_name].values
 
-    print("\nBest trial summary")
-    print(f"  objective (RMSE_macro + penalty*std): {best.value:.4f}")
-    for k, v in best_params.items():
-        print(f"  {k}: {v}")
+        objective = make_objective(
+            X_train_all=X_train_all,
+            y_train_target=y_train_target,
+            seed=args.seed + target_idx * 1000,
+            folds=args.folds,
+            max_epochs=args.max_epochs,
+            patience=args.patience,
+            stability_penalty=args.stability_penalty,
+        )
 
-    print("\nTraining CV ensemble with best params ...")
-    members, cv_summary = train_cv_ensemble(
-        X_train_all=X_train_all,
-        Y_train_all=Y_train_all,
-        params=best_params,
-        seed=args.seed,
-        folds=args.folds,
-        max_epochs=args.max_epochs,
-        patience=args.patience,
-    )
+        study = optuna.create_study(
+            direction="minimize",
+            sampler=optuna.samplers.TPESampler(seed=args.seed + target_idx),
+            pruner=optuna.pruners.MedianPruner(n_startup_trials=10, n_warmup_steps=2),
+        )
+        study.optimize(objective, n_trials=args.trials, show_progress_bar=True)
 
-    Y_pred_test = predict_with_ensemble(
-        members=members,
-        params=best_params,
-        X_test_raw=X_test_raw,
-        out_dim=Y_train_all.shape[1],
-    )
+        best = study.best_trial
+        best_params = normalize_best_params(best.params.copy())
 
-    print("\n" + "=" * 60)
-    print("Final evaluation on test set (original scale)")
-    print("=" * 60)
-    test_metrics = {}
-    for i, target in enumerate(TARGET_COLS):
-        y_true = Y_test_raw[:, i]
-        y_pred = Y_pred_test[:, i]
-        rmse = float(np.sqrt(mean_squared_error(y_true, y_pred)))
-        mae = float(mean_absolute_error(y_true, y_pred))
-        r2 = float(r2_score(y_true, y_pred))
-        print(f"  {target:15s}  RMSE={rmse:7.3f}  MAE={mae:7.3f}  R²={r2:.4f}")
-        test_metrics[target] = {"rmse": rmse, "mae": mae, "r2": r2}
+        print("\nBest trial summary")
+        print(f"  objective (RMSE + {args.stability_penalty:g}*std): {best.value:.4f}")
+        for k, v in best_params.items():
+            print(f"  {k}: {v}")
+
+        print("\nTraining CV ensemble with best params ...")
+        members, cv_summary = train_cv_ensemble(
+            X_train_all=X_train_all,
+            y_train_target=y_train_target,
+            params=best_params,
+            seed=args.seed + target_idx * 1000,
+            folds=args.folds,
+            max_epochs=args.max_epochs,
+            patience=args.patience,
+        )
+
+        y_pred_test = predict_with_ensemble(members, best_params, X_test_raw)
+
+        rmse_test = float(np.sqrt(mean_squared_error(y_test_target, y_pred_test)))
+        mae_test = float(mean_absolute_error(y_test_target, y_pred_test))
+        r2_test = float(r2_score(y_test_target, y_pred_test))
+
+        print("\nTest metrics (ensemble)")
+        print(f"  RMSE={rmse_test:.3f}  MAE={mae_test:.3f}  R²={r2_test:.4f}\n")
+
+        target_payloads[target_name] = {
+            "best_params": best_params,
+            "best_objective": float(best.value),
+            "cv_summary": cv_summary,
+            "members": members,
+            "test_metrics": {
+                "rmse": rmse_test,
+                "mae": mae_test,
+                "r2": r2_test,
+            },
+        }
+
+    print("=" * 72)
+    print("Final test summary")
+    print("=" * 72)
+    for target_name in selected_targets:
+        metrics = target_payloads[target_name]["test_metrics"]
+        print(
+            f"  {target_name:15s} RMSE={metrics['rmse']:7.3f} "
+            f"MAE={metrics['mae']:7.3f}  R²={metrics['r2']:.4f}"
+        )
 
     out_path = Path(args.out)
     if not out_path.is_absolute():
@@ -437,24 +463,20 @@ def main() -> None:
     torch.save(
         {
             "model_family": "kan",
-            "paradigm": "multi_output",
+            "paradigm": "per_target",
             "feature_cols": FEATURE_COLS,
-            "target_cols": TARGET_COLS,
-            "best_params": best_params,
-            "best_objective": float(best.value),
-            "cv_summary": cv_summary,
-            "members": members,
-            "test_metrics": test_metrics,
+            "target_cols": selected_targets,
+            "target_payloads": target_payloads,
             "seed": args.seed,
-            "trials": args.trials,
             "folds": args.folds,
+            "trials": args.trials,
             "max_epochs": args.max_epochs,
             "patience": args.patience,
             "stability_penalty": args.stability_penalty,
         },
         out_path,
     )
-    print(f"\nSaved tuned KAN checkpoint to {out_path}")
+    print(f"\nSaved tuned per-target KAN checkpoint to {out_path}")
 
 
 if __name__ == "__main__":

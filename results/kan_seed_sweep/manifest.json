@@ -1,0 +1,44 @@
+{
+  "generated_at_utc": "2026-03-06T19:58:03.480990+00:00",
+  "seeds": [
+    42,
+    2024,
+    3407,
+    7777,
+    10086
+  ],
+  "trials": 30,
+  "folds": 5,
+  "max_epochs": 1400,
+  "patience": 100,
+  "stability_penalty": 0.1,
+  "checkpoint_dir": "/Users/xjzou/Desktop/DBPs-prediction-by-kan-main/checkpoints/kan_seed_sweep",
+  "report_dir": "/Users/xjzou/Desktop/DBPs-prediction-by-kan-main/results/kan_seed_sweep",
+  "runs": [
+    {
+      "seed": 42,
+      "multi_output_checkpoint": "/Users/xjzou/Desktop/DBPs-prediction-by-kan-main/checkpoints/kan_seed_sweep/kan_multi_output_seed42.pt",
+      "per_target_checkpoint": "/Users/xjzou/Desktop/DBPs-prediction-by-kan-main/checkpoints/kan_seed_sweep/kan_per_target_seed42.pt"
+    },
+    {
+      "seed": 2024,
+      "multi_output_checkpoint": "/Users/xjzou/Desktop/DBPs-prediction-by-kan-main/checkpoints/kan_seed_sweep/kan_multi_output_seed2024.pt",
+      "per_target_checkpoint": "/Users/xjzou/Desktop/DBPs-prediction-by-kan-main/checkpoints/kan_seed_sweep/kan_per_target_seed2024.pt"
+    },
+    {
+      "seed": 3407,
+      "multi_output_checkpoint": "/Users/xjzou/Desktop/DBPs-prediction-by-kan-main/checkpoints/kan_seed_sweep/kan_multi_output_seed3407.pt",
+      "per_target_checkpoint": "/Users/xjzou/Desktop/DBPs-prediction-by-kan-main/checkpoints/kan_seed_sweep/kan_per_target_seed3407.pt"
+    },
+    {
+      "seed": 7777,
+      "multi_output_checkpoint": "/Users/xjzou/Desktop/DBPs-prediction-by-kan-main/checkpoints/kan_seed_sweep/kan_multi_output_seed7777.pt",
+      "per_target_checkpoint": "/Users/xjzou/Desktop/DBPs-prediction-by-kan-main/checkpoints/kan_seed_sweep/kan_per_target_seed7777.pt"
+    },
+    {
+      "seed": 10086,
+      "multi_output_checkpoint": "/Users/xjzou/Desktop/DBPs-prediction-by-kan-main/checkpoints/kan_seed_sweep/kan_multi_output_seed10086.pt",
+      "per_target_checkpoint": "/Users/xjzou/Desktop/DBPs-prediction-by-kan-main/checkpoints/kan_seed_sweep/kan_per_target_seed10086.pt"
+    }
+  ]
+}
