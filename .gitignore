@@ -21,6 +21,8 @@ venv/
 
 # Model checkpoints
 *.pt
+checkpoints/
+results/
 
 # macOS
 .DS_Store
@@ -34,3 +36,7 @@ venv/
 
 # Environment
 .env
+
+# Tooling caches
+.pytest_cache/
+.ruff_cache/

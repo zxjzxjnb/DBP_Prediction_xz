@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "dbp-prediction"
 version = "0.1.0"
-description = "Predicting disinfection by-products (DBPs) in drinking water with MLP and KAN models"
+description = "Predicting disinfection by-products (DBPs) in drinking water with reproducible tabular ML experiments"
 readme = "README.md"
 license = {text = "MIT"}
 requires-python = ">=3.9"
@@ -39,10 +39,7 @@ dbp = "dbp_prediction.cli.main:main"
 dbp-train-mlp = "dbp_prediction.cli.train_mlp:main"
 dbp-train-kan = "dbp_prediction.cli.train_kan:main"
 dbp-tune-mlp = "dbp_prediction.cli.tune_mlp:main"
-dbp-tune-kan = "dbp_prediction.cli.tune_kan:main"
 dbp-tune-kan-pt = "dbp_prediction.cli.tune_kan_per_target:main"
-dbp-compare = "dbp_prediction.cli.compare_kan_paradigms:main"
-dbp-sweep = "dbp_prediction.cli.sweep_kan_paradigms:main"
 dbp-report = "dbp_prediction.cli.generate_report:main"
 
 [tool.setuptools.packages.find]

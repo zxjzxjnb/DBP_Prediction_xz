@@ -1,8 +1,8 @@
 """Training loop, early stopping, and CV ensemble utilities.
 
 This module extracts the training logic that was duplicated across
-``train_mlp.py``, ``train_kan.py``, ``tune_mlp.py``, ``tune_kan.py``,
-and ``tune_kan_per_target.py``.
+``train_mlp.py``, ``train_kan.py``, ``tune_mlp.py``, and
+``tune_kan_per_target.py``.
 """
 
 from __future__ import annotations
