@@ -12,7 +12,18 @@ from pathlib import Path
 
 import torch
 
-from dbp_prediction.config import CHECKPOINT_DIR, RESULTS_DIR
+from dbp_prediction.config import CHECKPOINT_DIR, RESULTS_DIR, resolve_artifact_path
+
+DEFAULT_BASELINE_CANDIDATES = [
+    CHECKPOINT_DIR / "mlp_tuned_checkpoint_best.pt",
+    CHECKPOINT_DIR / "mlp_tuned_checkpoint_best_40.pt",
+    CHECKPOINT_DIR / "mlp_tuned_checkpoint_best_30.pt",
+]
+DEFAULT_CANDIDATE_CANDIDATES = [
+    CHECKPOINT_DIR / "kan_tuned_per_target_checkpoint.pt",
+    CHECKPOINT_DIR / "kan_tuned_per_target.pt",
+    CHECKPOINT_DIR / "kan_tuned_per_target_60trials.pt",
+]
 
 
 def parse_args() -> argparse.Namespace:
@@ -20,11 +31,15 @@ def parse_args() -> argparse.Namespace:
         description="Generate report-ready markdown comparison table",
     )
     parser.add_argument("--baseline-ckpt", type=str,
-                        default=str(CHECKPOINT_DIR / "mlp_tuned_checkpoint_best.pt"))
-    parser.add_argument("--baseline-label", type=str, default="Baseline MLP")
+                        default=None,
+                        help="Baseline checkpoint. Auto-detects standard filenames if omitted.")
+    parser.add_argument("--baseline-label", type=str, default=None,
+                        help="Display label for the baseline model. Auto-inferred if omitted.")
     parser.add_argument("--candidate-ckpt", type=str,
-                        default=str(CHECKPOINT_DIR / "kan_tuned_per_target_checkpoint.pt"))
-    parser.add_argument("--candidate-label", type=str, default="KAN (Per-target)")
+                        default=None,
+                        help="Candidate checkpoint. Auto-detects standard filenames if omitted.")
+    parser.add_argument("--candidate-label", type=str, default=None,
+                        help="Display label for the candidate model. Auto-inferred if omitted.")
     parser.add_argument("--title", type=str,
                         default="Protocol-Matched Comparison (Test Set)")
     parser.add_argument("--out", type=str,
@@ -33,7 +48,13 @@ def parse_args() -> argparse.Namespace:
 
 
 def _load(path: str) -> dict:
-    return torch.load(path, map_location="cpu", weights_only=False)
+    p = Path(path)
+    if not p.exists():
+        raise FileNotFoundError(f"Checkpoint not found: {p}")
+    try:
+        return torch.load(p, map_location="cpu", weights_only=False)
+    except TypeError:
+        return torch.load(p, map_location="cpu")
 
 
 def _extract(ckpt: dict, label: str = "checkpoint") -> dict[str, dict[str, float]]:
@@ -65,6 +86,60 @@ def _extract(ckpt: dict, label: str = "checkpoint") -> dict[str, dict[str, float
     )
 
 
+def _infer_label(ckpt: dict, fallback: str) -> str:
+    model_family = ckpt.get("model_family")
+    paradigm = ckpt.get("paradigm")
+    has_target_payloads = isinstance(ckpt.get("target_payloads"), dict)
+
+    if model_family == "kan":
+        if paradigm in {"per_target", "per_target_baseline"}:
+            return "KAN (Per-target)"
+        if paradigm == "multi_output":
+            return "KAN (Multi-output)"
+        if has_target_payloads:
+            return "KAN (Per-target)"
+        return "KAN"
+
+    if model_family == "mlp":
+        if paradigm in {"per_target", "per_target_baseline"} or has_target_payloads:
+            return "MLP (Per-target)"
+        return "MLP"
+
+    return fallback
+
+
+def _describe_protocol(ckpt: dict) -> str:
+    parts: list[str] = []
+
+    paradigm = ckpt.get("paradigm")
+    payloads = ckpt.get("target_payloads")
+    if paradigm == "per_target_baseline":
+        parts.append("per-target baseline training")
+    elif paradigm == "per_target":
+        parts.append("per-target tuning")
+    elif paradigm == "multi_output":
+        parts.append("multi-output tuning")
+    elif isinstance(payloads, dict):
+        if ckpt.get("trials") is not None or ckpt.get("folds") is not None:
+            parts.append("per-target tuning")
+        else:
+            parts.append("per-target checkpoint")
+
+    folds = ckpt.get("folds")
+    if folds is not None:
+        parts.append(f"{folds} folds")
+
+    seed = ckpt.get("seed")
+    if seed is not None:
+        parts.append(f"seed={seed}")
+
+    trials = ckpt.get("trials")
+    if trials is not None:
+        parts.append(f"trials={trials}")
+
+    return ", ".join(parts) if parts else "protocol unavailable"
+
+
 def _better(metric: str, b: float, c: float, bl: str, cl: str) -> str:
     if abs(b - c) < 5e-4:
         return "Tie"
@@ -76,10 +151,18 @@ def _better(metric: str, b: float, c: float, bl: str, cl: str) -> str:
 def render(title: str, bl: str, cl: str, b_ckpt: dict, c_ckpt: dict,
            b_metrics: dict, c_metrics: dict) -> str:
     targets = [t for t in b_metrics if t in c_metrics]
+    if not targets:
+        raise ValueError("No overlapping targets found between checkpoints.")
+
     lines: list[str] = [f"# {title}", ""]
     lines.append(f"- Baseline: `{bl}`, Candidate: `{cl}`")
-    lines.append(f"- Protocol: per-target tuning, {b_ckpt.get('folds')} folds, "
-                 f"seed={b_ckpt.get('seed')}")
+    baseline_protocol = _describe_protocol(b_ckpt)
+    candidate_protocol = _describe_protocol(c_ckpt)
+    if baseline_protocol == candidate_protocol:
+        lines.append(f"- Protocol: {baseline_protocol}")
+    else:
+        lines.append(f"- Baseline protocol: {baseline_protocol}")
+        lines.append(f"- Candidate protocol: {candidate_protocol}")
     lines.append("")
 
     hdr = (f"| Target | {bl} RMSE | {cl} RMSE | Better | "
@@ -104,12 +187,26 @@ def render(title: str, bl: str, cl: str, b_ckpt: dict, c_ckpt: dict,
 
 def main() -> None:
     args = parse_args()
-    b_ckpt = _load(args.baseline_ckpt)
-    c_ckpt = _load(args.candidate_ckpt)
-    md = render(args.title, args.baseline_label, args.candidate_label,
+    baseline_path = resolve_artifact_path(
+        args.baseline_ckpt,
+        DEFAULT_BASELINE_CANDIDATES,
+        "baseline checkpoint",
+    )
+    candidate_path = resolve_artifact_path(
+        args.candidate_ckpt,
+        DEFAULT_CANDIDATE_CANDIDATES,
+        "candidate checkpoint",
+    )
+
+    b_ckpt = _load(str(baseline_path))
+    c_ckpt = _load(str(candidate_path))
+    baseline_label = args.baseline_label or _infer_label(b_ckpt, "Baseline MLP")
+    candidate_label = args.candidate_label or _infer_label(c_ckpt, "Candidate model")
+
+    md = render(args.title, baseline_label, candidate_label,
                 b_ckpt, c_ckpt,
-                _extract(b_ckpt, f"baseline ({args.baseline_ckpt})"),
-                _extract(c_ckpt, f"candidate ({args.candidate_ckpt})"))
+                _extract(b_ckpt, f"baseline ({baseline_path})"),
+                _extract(c_ckpt, f"candidate ({candidate_path})"))
 
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)

@@ -1,4 +1,4 @@
-"""Compare test-set metrics between multi-output and per-target KAN checkpoints.
+"""Compare legacy multi-output and current per-target KAN checkpoints.
 
 Usage::
 
@@ -13,22 +13,33 @@ from pathlib import Path
 import numpy as np
 import torch
 
-from dbp_prediction.config import CHECKPOINT_DIR
+from dbp_prediction.config import CHECKPOINT_DIR, resolve_artifact_path
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
+DEFAULT_MULTI_OUTPUT_CANDIDATES = [
+    CHECKPOINT_DIR / "kan_tuned_checkpoint.pt",
+    CHECKPOINT_DIR / "kan_tuned_multi_output.pt",
+    CHECKPOINT_DIR / "kan_tuned_checkpoint_best.pt",
+]
+DEFAULT_PER_TARGET_CANDIDATES = [
+    CHECKPOINT_DIR / "kan_tuned_per_target_checkpoint.pt",
+    CHECKPOINT_DIR / "kan_tuned_per_target.pt",
+    CHECKPOINT_DIR / "kan_tuned_per_target_60trials.pt",
+]
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Compare multi-output vs per-target KAN checkpoints",
+        description="Historical comparison: legacy multi-output vs per-target KAN",
     )
     parser.add_argument(
         "--multi-output", type=str,
-        default=str(CHECKPOINT_DIR / "kan_tuned_checkpoint.pt"),
+        default=None,
+        help="Multi-output KAN checkpoint. Auto-detects standard filenames if omitted.",
     )
     parser.add_argument(
         "--per-target", type=str,
-        default=str(CHECKPOINT_DIR / "kan_tuned_per_target_checkpoint.pt"),
+        default=None,
+        help="Per-target KAN checkpoint. Auto-detects standard filenames if omitted.",
     )
     return parser.parse_args()
 
@@ -53,14 +64,25 @@ def _extract_per_target(ckpt: dict) -> dict[str, dict[str, float]]:
 
 def main() -> None:
     args = parse_args()
-    multi = _extract_multi(_load(args.multi_output))
-    per_target = _extract_per_target(_load(args.per_target))
+    multi_path = resolve_artifact_path(
+        args.multi_output,
+        DEFAULT_MULTI_OUTPUT_CANDIDATES,
+        "multi-output KAN checkpoint",
+    )
+    per_target_path = resolve_artifact_path(
+        args.per_target,
+        DEFAULT_PER_TARGET_CANDIDATES,
+        "per-target KAN checkpoint",
+    )
+
+    multi = _extract_multi(_load(str(multi_path)))
+    per_target = _extract_per_target(_load(str(per_target_path)))
 
     targets = sorted(set(multi) & set(per_target))
 
     print("KAN paradigm comparison on test metrics")
-    print(f"  Multi-output: {args.multi_output}")
-    print(f"  Per-target:   {args.per_target}\n")
+    print(f"  Multi-output: {multi_path}")
+    print(f"  Per-target:   {per_target_path}\n")
     print("Delta = per-target − multi-output.  Lower RMSE/MAE better, higher R² better.\n")
 
     header = (

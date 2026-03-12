@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -33,8 +34,49 @@ PROJECT_ROOT = _find_project_root()
 DATA_DIR = PROJECT_ROOT / "data"
 CHECKPOINT_DIR = PROJECT_ROOT / "checkpoints"
 RESULTS_DIR = PROJECT_ROOT / "results"
+PACKAGE_DATA_DIR = Path(__file__).resolve().parent / "_data"
+PACKAGED_DATA_PATH = PACKAGE_DATA_DIR / "DBP_dataset_DWTP_B.csv"
 
-DEFAULT_DATA_PATH = DATA_DIR / "DBP_dataset_DWTP_B.csv"
+
+def first_existing_path(candidates: Iterable[Path]) -> Path | None:
+    """Return the first existing path from an ordered candidate list."""
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+    return None
+
+
+def resolve_artifact_path(
+    explicit_path: str | None,
+    candidates: list[Path],
+    label: str,
+) -> Path:
+    """Resolve a CLI artifact path, supporting legacy defaults.
+
+    If ``explicit_path`` is provided, it is returned as-is. Otherwise the first
+    existing path from ``candidates`` is returned. A clear ``FileNotFoundError``
+    is raised when none of the candidates exist.
+    """
+    if explicit_path is not None:
+        return Path(explicit_path)
+
+    resolved = first_existing_path(candidates)
+    if resolved is not None:
+        return resolved
+
+    searched = ", ".join(str(path) for path in candidates)
+    raise FileNotFoundError(f"No {label} found. Searched: {searched}")
+
+
+def _resolve_default_data_path() -> Path:
+    candidates = [
+        DATA_DIR / "DBP_dataset_DWTP_B.csv",
+        PACKAGED_DATA_PATH,
+    ]
+    return first_existing_path(candidates) or candidates[0]
+
+
+DEFAULT_DATA_PATH = _resolve_default_data_path()
 
 # ── Column definitions ──────────────────────────────────────────────────────
 

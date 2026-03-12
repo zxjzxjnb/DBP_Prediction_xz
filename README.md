@@ -7,7 +7,7 @@
 
 ## Overview
 
-This project compares **Multi-Layer Perceptron (MLP)** and **Kolmogorov-Arnold Network (KAN)** architectures for predicting three disinfection by-products from 9 water quality features:
+This project standardizes on **per-target prediction** with **Multi-Layer Perceptron (MLP)** and **Kolmogorov-Arnold Network (KAN)** models for three disinfection by-products from 9 water quality features:
 
 | Target | Description |
 | --- | --- |
@@ -18,8 +18,8 @@ This project compares **Multi-Layer Perceptron (MLP)** and **Kolmogorov-Arnold N
 Key features:
 - **Optuna Bayesian hyperparameter tuning** with TPE sampler and median pruning
 - **5-fold CV ensemble** for robust predictions on small datasets (175 samples)
-- **Multi-seed sweep** for statistically rigorous model comparison
-- **Per-target vs multi-output** KAN paradigm comparison
+- **Per-target training and tuning** for all three DBP targets
+- **Historical multi-output KAN comparison tools** retained for backtesting only
 
 ## Project Structure
 
@@ -33,15 +33,16 @@ Key features:
 │   │   ├── mlp.py               # MLP model definition
 │   │   └── kan.py               # KAN model builder
 │   └── cli/                     # Command-line entry points
-│       ├── train_mlp.py
-│       ├── train_kan.py
-│       ├── tune_mlp.py
-│       ├── tune_kan.py
-│       ├── tune_kan_per_target.py
-│       ├── compare_kan_paradigms.py
-│       ├── sweep_kan_paradigms.py
-│       └── generate_report.py
+│       ├── train_mlp.py         # Per-target baseline MLP training
+│       ├── train_kan.py         # Per-target baseline KAN training
+│       ├── tune_mlp.py          # Per-target MLP Optuna tuning
+│       ├── tune_kan.py          # Legacy multi-output KAN tuning
+│       ├── tune_kan_per_target.py   # Per-target KAN Optuna tuning
+│       ├── compare_kan_paradigms.py # Legacy KAN paradigm comparison
+│       ├── sweep_kan_paradigms.py   # Legacy multi-seed KAN sweep
+│       └── generate_report.py   # Report table from tuned checkpoints
 ├── tests/                       # Pytest test suite
+├── scripts/                     # Deprecated compatibility wrappers
 ├── data/                        # Dataset
 ├── checkpoints/                 # Model checkpoints (.pt)
 ├── results/                     # Metrics logs and reports
@@ -56,13 +57,16 @@ Key features:
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/DBPs-prediction-by-kan.git
+git clone https://github.com/zxjzxjnb/DBPs-prediction-by-kan.git
 cd DBPs-prediction-by-kan
 
-# Option 1: pip install (recommended)
+# Option 1: editable install (recommended for development)
 pip install -e ".[dev]"
 
-# Option 2: conda
+# Option 2: standard install (dataset is bundled with the package)
+pip install .
+
+# Option 3: conda
 conda env create -f environment.yml
 conda activate kan_model
 pip install -e ".[dev]"
@@ -71,11 +75,15 @@ pip install -e ".[dev]"
 ### Training
 
 ```bash
-# Train baseline MLP
+# Train baseline MLP (per-target)
 python -m dbp_prediction.cli.train_mlp
 
-# Train baseline KAN
+# Train baseline KAN (per-target)
 python -m dbp_prediction.cli.train_kan
+
+# Train only selected targets
+python -m dbp_prediction.cli.train_mlp --targets T_THMs_ug_L,DBCM_ug_L
+python -m dbp_prediction.cli.train_kan --targets T_THMs_ug_L
 
 # Or use installed CLI commands
 dbp-train-mlp --seed 42
@@ -88,25 +96,36 @@ dbp-train-kan --seed 42 --grid 8
 # Tune MLP (per-target, Optuna)
 python -m dbp_prediction.cli.tune_mlp --trials 120
 
-# Tune KAN (multi-output)
-python -m dbp_prediction.cli.tune_kan --trials 60
-
-# Tune KAN (per-target)
+# Tune KAN (per-target, Optuna)
 python -m dbp_prediction.cli.tune_kan_per_target --trials 60
 ```
 
 ### Evaluation & Reporting
 
 ```bash
-# Compare KAN paradigms
-python -m dbp_prediction.cli.compare_kan_paradigms
-
-# Multi-seed sweep
-python -m dbp_prediction.cli.sweep_kan_paradigms --seeds 42,2024,3407 --trials 30
-
-# Generate comparison report
+# Generate MLP vs per-target KAN comparison report
 python -m dbp_prediction.cli.generate_report
 ```
+
+### Optional Historical Comparison
+
+These commands are retained only if you want to reproduce the older
+multi-output-vs-per-target KAN comparison.
+
+```bash
+# Tune legacy multi-output KAN
+python -m dbp_prediction.cli.tune_kan --trials 60
+
+# Compare legacy multi-output KAN against current per-target KAN
+python -m dbp_prediction.cli.compare_kan_paradigms
+
+# Run multi-seed historical comparison
+python -m dbp_prediction.cli.sweep_kan_paradigms --seeds 42,2024,3407 --trials 30
+```
+
+The `scripts/` directory now contains compatibility wrappers only. New work
+should use `python -m dbp_prediction.cli.<command>` or the installed
+`dbp-*` console scripts.
 
 ### Testing
 

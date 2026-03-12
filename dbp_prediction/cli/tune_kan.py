@@ -1,4 +1,4 @@
-"""Optuna tuning for a multi-output KAN on DBP prediction.
+"""Legacy Optuna tuning for a multi-output KAN on DBP prediction.
 
 Usage::
 
@@ -76,7 +76,7 @@ def make_objective(
     patience: int,
     stability_penalty: float,
 ):
-    """Create an Optuna objective for multi-output KAN tuning."""
+    """Create an Optuna objective for legacy multi-output KAN tuning."""
 
     def objective(trial: optuna.Trial) -> float:
         params = sample_params(trial)
@@ -113,7 +113,9 @@ def make_objective(
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Tune a multi-output KAN for DBP prediction")
+    parser = argparse.ArgumentParser(
+        description="Legacy multi-output KAN tuning for historical comparison",
+    )
     parser.add_argument("--trials", type=int, default=int(os.getenv("KAN_TUNE_TRIALS", "60")))
     parser.add_argument("--folds", type=int, default=5)
     parser.add_argument("--max-epochs", type=int, default=1400)

@@ -43,6 +43,9 @@ dbp-report = "dbp_prediction.cli.generate_report:main"
 [tool.setuptools.packages.find]
 include = ["dbp_prediction*"]
 
+[tool.setuptools.package-data]
+dbp_prediction = ["_data/*.csv"]
+
 # ── Ruff (linter + formatter) ──────────────────────────────────────────────
 
 [tool.ruff]

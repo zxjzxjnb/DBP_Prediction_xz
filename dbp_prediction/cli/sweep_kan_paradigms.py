@@ -1,7 +1,7 @@
-"""Multi-seed sweep comparing KAN paradigms.
+"""Multi-seed historical sweep comparing KAN paradigms.
 
-Orchestrates ``tune_kan`` and ``tune_kan_per_target`` across multiple random
-seeds and generates CSV/JSON/Markdown reports.
+Orchestrates legacy ``tune_kan`` and current ``tune_kan_per_target`` across
+multiple random seeds and generates CSV/JSON/Markdown reports.
 
 Usage::
 
@@ -31,7 +31,9 @@ def log(msg: str = "") -> None:
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Sweep KAN paradigms across multiple seeds")
+    parser = argparse.ArgumentParser(
+        description="Historical multi-seed sweep: multi-output vs per-target KAN",
+    )
     parser.add_argument("--seeds", type=str, default="42,2024,3407,7777,10086")
     parser.add_argument("--trials", type=int, default=30)
     parser.add_argument("--folds", type=int, default=5)
