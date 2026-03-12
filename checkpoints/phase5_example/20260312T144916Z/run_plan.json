@@ -1,0 +1,148 @@
+{
+  "config_source": "/Users/xjzou/Desktop/DBPs-prediction-by-kan-main/experiments/per_target_feature_demo.yaml",
+  "dataset": {
+    "reason": "dataset inspection disabled",
+    "status": "skipped"
+  },
+  "features": {
+    "step_count": 7,
+    "steps": [
+      {
+        "name": "select_columns",
+        "params": {
+          "columns": [
+            "pH",
+            "COD_mg_L",
+            "TOC_mg_L"
+          ]
+        }
+      },
+      {
+        "name": "impute",
+        "params": {
+          "strategy": "mean"
+        }
+      },
+      {
+        "name": "log1p",
+        "params": {
+          "columns": [
+            "COD_mg_L",
+            "TOC_mg_L"
+          ]
+        }
+      },
+      {
+        "name": "interaction",
+        "params": {
+          "columns": [
+            "pH",
+            "COD_mg_L",
+            "TOC_mg_L"
+          ]
+        }
+      },
+      {
+        "name": "polynomial",
+        "params": {
+          "columns": [
+            "COD_mg_L"
+          ],
+          "degree": 2
+        }
+      },
+      {
+        "name": "scale",
+        "params": {}
+      },
+      {
+        "name": "target_transform",
+        "params": {
+          "method": "log1p"
+        }
+      }
+    ]
+  },
+  "legacy_command_hints": [
+    {
+      "alias": null,
+      "command": "python -m dbp_prediction.cli.train_mlp --config /Users/xjzou/Desktop/DBPs-prediction-by-kan-main/experiments/per_target_feature_demo.yaml",
+      "enabled": true,
+      "name": "mlp",
+      "reason": null,
+      "supported": true
+    },
+    {
+      "alias": null,
+      "command": "python -m dbp_prediction.cli.train_kan --config /Users/xjzou/Desktop/DBPs-prediction-by-kan-main/experiments/per_target_feature_demo.yaml",
+      "enabled": true,
+      "name": "kan",
+      "reason": null,
+      "supported": true
+    }
+  ],
+  "models": [
+    {
+      "alias": null,
+      "enabled": true,
+      "name": "mlp",
+      "params": {
+        "activation": "ReLU",
+        "dropout": 0.2,
+        "hidden_dims": [
+          32,
+          16
+        ]
+      }
+    },
+    {
+      "alias": null,
+      "enabled": true,
+      "name": "kan",
+      "params": {
+        "base_fun": "silu",
+        "grid": 8,
+        "hidden_dims": [
+          32,
+          16
+        ],
+        "k": 3
+      }
+    }
+  ],
+  "output_dir": "/Users/xjzou/Desktop/DBPs-prediction-by-kan-main/checkpoints/phase5_example/20260312T144916Z",
+  "outputs": {
+    "dir": "/Users/xjzou/Desktop/DBPs-prediction-by-kan-main/checkpoints/phase5_example/20260312T144916Z",
+    "save_models": true,
+    "save_predictions": false
+  },
+  "phase": "phase2_runner_skeleton",
+  "prepared_at_utc": "2026-03-12T14:49:16.306834+00:00",
+  "run_id": "20260312T144916Z",
+  "status": "prepared",
+  "task": {
+    "selected_targets": [
+      "T_THMs_ug_L",
+      "DBCM_ug_L",
+      "BDCM_ug_L"
+    ],
+    "strategy": "per_target"
+  },
+  "training": {
+    "batch_size": 16,
+    "loss": "MSE",
+    "lr": 0.001,
+    "max_epochs": 2000,
+    "optimizer": "Adam",
+    "patience": 100,
+    "seed": 42,
+    "val_fraction": 0.15,
+    "weight_decay": 0.0001
+  },
+  "tuning": {
+    "enabled": false,
+    "folds": 5,
+    "stability_penalty": 0.1,
+    "trials": 60
+  }
+}

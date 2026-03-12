@@ -36,6 +36,15 @@ class TestLoadDataset:
         with pytest.raises(ValueError, match="Missing columns"):
             load_dataset(bad_csv)
 
+    def test_supports_custom_split_column(self, sample_dataframe: pd.DataFrame, tmp_path: Path) -> None:
+        custom_csv = tmp_path / "custom_split.csv"
+        df = sample_dataframe.rename(columns={"split": "partition"})
+        df.to_csv(custom_csv, index=False)
+
+        loaded = load_dataset(custom_csv, split_col="partition")
+
+        assert "partition" in loaded.columns
+
 
 class TestSplitting:
     """Tests for train/test and train/val splitting."""
@@ -44,6 +53,33 @@ class TestSplitting:
         train, test = get_train_test_split(sample_dataframe)
         assert len(train) == 20
         assert len(test) == 5
+
+    def test_train_test_split_supports_custom_labels(self, sample_dataframe: pd.DataFrame) -> None:
+        df = sample_dataframe.copy()
+        df["partition"] = ["fit"] * 20 + ["holdout"] * 5
+        train, test = get_train_test_split(
+            df,
+            split_col="partition",
+            train_label="fit",
+            test_label="holdout",
+        )
+
+        assert len(train) == 20
+        assert len(test) == 5
+
+    def test_train_test_split_raises_when_train_partition_is_empty(
+        self,
+        sample_dataframe: pd.DataFrame,
+    ) -> None:
+        with pytest.raises(ValueError, match="Split produced an empty partition"):
+            get_train_test_split(sample_dataframe, train_label="fit")
+
+    def test_train_test_split_raises_when_test_partition_is_empty(
+        self,
+        sample_dataframe: pd.DataFrame,
+    ) -> None:
+        with pytest.raises(ValueError, match="available_labels"):
+            get_train_test_split(sample_dataframe, test_label="holdout")
 
     def test_train_val_split(self, sample_dataframe: pd.DataFrame) -> None:
         train, _ = get_train_test_split(sample_dataframe)

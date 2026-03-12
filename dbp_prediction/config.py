@@ -1,82 +1,29 @@
-"""Shared configuration constants and dataclasses for the DBP prediction project."""
+"""Legacy compatibility exports for shared configuration values."""
 
 from __future__ import annotations
 
-from collections.abc import Iterable
 from dataclasses import dataclass, field
-from pathlib import Path
-
-# ── Project paths ────────────────────────────────────────────────────────────
-
-
-def _find_project_root() -> Path:
-    """Locate the project root directory.
-
-    Strategy:
-    1. Walk up from this file looking for ``data/`` — works for source checkouts
-       and editable installs.
-    2. Fall back to the current working directory — works for normal pip installs
-       where the user runs commands from their project directory.
-    """
-    candidate = Path(__file__).resolve().parents[1]
-    if (candidate / "data").is_dir():
-        return candidate
-
-    cwd = Path.cwd()
-    if (cwd / "data").is_dir():
-        return cwd
-
-    # Last resort: use CWD so outputs don't land in site-packages.
-    return cwd
-
-
-PROJECT_ROOT = _find_project_root()
-DATA_DIR = PROJECT_ROOT / "data"
-CHECKPOINT_DIR = PROJECT_ROOT / "checkpoints"
-RESULTS_DIR = PROJECT_ROOT / "results"
-PACKAGE_DATA_DIR = Path(__file__).resolve().parent / "_data"
-PACKAGED_DATA_PATH = PACKAGE_DATA_DIR / "DBP_dataset_DWTP_B.csv"
-
-
-def first_existing_path(candidates: Iterable[Path]) -> Path | None:
-    """Return the first existing path from an ordered candidate list."""
-    for candidate in candidates:
-        if candidate.exists():
-            return candidate
-    return None
-
-
-def resolve_artifact_path(
-    explicit_path: str | None,
-    candidates: list[Path],
-    label: str,
-) -> Path:
-    """Resolve a CLI artifact path, supporting legacy defaults.
-
-    If ``explicit_path`` is provided, it is returned as-is. Otherwise the first
-    existing path from ``candidates`` is returned. A clear ``FileNotFoundError``
-    is raised when none of the candidates exist.
-    """
-    if explicit_path is not None:
-        return Path(explicit_path)
-
-    resolved = first_existing_path(candidates)
-    if resolved is not None:
-        return resolved
-
-    searched = ", ".join(str(path) for path in candidates)
-    raise FileNotFoundError(f"No {label} found. Searched: {searched}")
-
-
-def _resolve_default_data_path() -> Path:
-    candidates = [
-        DATA_DIR / "DBP_dataset_DWTP_B.csv",
-        PACKAGED_DATA_PATH,
-    ]
-    return first_existing_path(candidates) or candidates[0]
-
-
-DEFAULT_DATA_PATH = _resolve_default_data_path()
+from dbp_prediction.settings import (
+    CHECKPOINT_DIR,
+    DATA_DIR,
+    DEFAULT_BATCH_SIZE,
+    DEFAULT_DATA_PATH,
+    DEFAULT_FOLDS,
+    DEFAULT_LR,
+    DEFAULT_MAX_EPOCHS,
+    DEFAULT_PATIENCE,
+    DEFAULT_SEED,
+    DEFAULT_STABILITY_PENALTY,
+    DEFAULT_TRIALS,
+    DEFAULT_VAL_FRACTION,
+    DEFAULT_WEIGHT_DECAY,
+    PACKAGE_DATA_DIR,
+    PACKAGED_DATA_PATH,
+    PROJECT_ROOT,
+    RESULTS_DIR,
+    first_existing_path,
+    resolve_artifact_path,
+)
 
 # ── Column definitions ──────────────────────────────────────────────────────
 
@@ -110,23 +57,23 @@ TEST_LABEL = "test"
 class TrainingConfig:
     """Configuration for a single training run."""
 
-    seed: int = 42
-    max_epochs: int = 2000
-    patience: int = 100
-    batch_size: int = 16
-    lr: float = 1e-3
-    weight_decay: float = 1e-4
-    val_fraction: float = 0.15
+    seed: int = DEFAULT_SEED
+    max_epochs: int = DEFAULT_MAX_EPOCHS
+    patience: int = DEFAULT_PATIENCE
+    batch_size: int = DEFAULT_BATCH_SIZE
+    lr: float = DEFAULT_LR
+    weight_decay: float = DEFAULT_WEIGHT_DECAY
+    val_fraction: float = DEFAULT_VAL_FRACTION
 
 
 @dataclass
 class TuningConfig:
     """Configuration for Optuna hyperparameter search."""
 
-    seed: int = 42
-    trials: int = 60
-    folds: int = 5
-    max_epochs: int = 2000
-    patience: int = 100
-    stability_penalty: float = 0.10
+    seed: int = DEFAULT_SEED
+    trials: int = DEFAULT_TRIALS
+    folds: int = DEFAULT_FOLDS
+    max_epochs: int = DEFAULT_MAX_EPOCHS
+    patience: int = DEFAULT_PATIENCE
+    stability_penalty: float = DEFAULT_STABILITY_PENALTY
     targets: list[str] = field(default_factory=lambda: list(TARGET_COLS))

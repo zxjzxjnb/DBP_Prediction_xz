@@ -1,0 +1,42 @@
+{
+  "column_count": 15,
+  "columns": [
+    "DWTP",
+    "split",
+    "sample_id",
+    "pH",
+    "COD_mg_L",
+    "NH4_N_mg_L",
+    "NO2_N_mg_L",
+    "NO3_N_mg_L",
+    "Br_mg_L",
+    "TOC_mg_L",
+    "UV254_A_cm",
+    "temp_C",
+    "T_THMs_ug_L",
+    "DBCM_ug_L",
+    "BDCM_ug_L"
+  ],
+  "feature_count": 9,
+  "format": "csv",
+  "path": "/Users/xjzou/Desktop/DBPs-prediction-by-kan-main/data/DBP_dataset_DWTP_B.csv",
+  "row_count": 175,
+  "selected_targets": [
+    "T_THMs_ug_L",
+    "DBCM_ug_L",
+    "BDCM_ug_L"
+  ],
+  "split": {
+    "column": "split",
+    "counts": {
+      "test": 34,
+      "train": 141
+    },
+    "strategy": "predefined",
+    "test_label": "test",
+    "test_rows": 34,
+    "train_label": "train",
+    "train_rows": 141
+  },
+  "target_count": 3
+}

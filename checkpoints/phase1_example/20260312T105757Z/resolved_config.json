@@ -1,0 +1,90 @@
+{
+  "dataset": {
+    "features": [
+      "pH",
+      "COD_mg_L",
+      "NH4_N_mg_L",
+      "NO2_N_mg_L",
+      "NO3_N_mg_L",
+      "Br_mg_L",
+      "TOC_mg_L",
+      "UV254_A_cm",
+      "temp_C"
+    ],
+    "format": "csv",
+    "path": "/Users/xjzou/Desktop/DBPs-prediction-by-kan-main/data/DBP_dataset_DWTP_B.csv",
+    "reader_options": {},
+    "split": {
+      "column": "split",
+      "strategy": "predefined",
+      "test_label": "test",
+      "train_label": "train"
+    },
+    "targets": [
+      "T_THMs_ug_L",
+      "DBCM_ug_L",
+      "BDCM_ug_L"
+    ]
+  },
+  "features": {
+    "steps": []
+  },
+  "models": [
+    {
+      "alias": null,
+      "enabled": true,
+      "name": "mlp",
+      "params": {
+        "activation": "ReLU",
+        "dropout": 0.2,
+        "hidden_dims": [
+          32,
+          16
+        ]
+      }
+    },
+    {
+      "alias": null,
+      "enabled": true,
+      "name": "kan",
+      "params": {
+        "base_fun": "silu",
+        "grid": 8,
+        "hidden_dims": [
+          32,
+          16
+        ],
+        "k": 3
+      }
+    }
+  ],
+  "outputs": {
+    "dir": "/Users/xjzou/Desktop/DBPs-prediction-by-kan-main/checkpoints/phase1_example",
+    "save_models": true,
+    "save_predictions": false
+  },
+  "source_path": "/Users/xjzou/Desktop/DBPs-prediction-by-kan-main/experiments/per_target_baseline.yaml",
+  "task": {
+    "strategy": "per_target",
+    "targets": []
+  },
+  "training": {
+    "batch_size": 16,
+    "huber_delta": 1.0,
+    "loss": "MSE",
+    "lr": 0.001,
+    "max_epochs": 2000,
+    "max_grad_norm": 5.0,
+    "optimizer": "Adam",
+    "patience": 100,
+    "seed": 42,
+    "val_fraction": 0.15,
+    "weight_decay": 0.0001
+  },
+  "tuning": {
+    "enabled": false,
+    "folds": 5,
+    "stability_penalty": 0.1,
+    "trials": 60
+  }
+}

@@ -28,11 +28,17 @@ Key features:
 │   ├── config.py                # Shared constants and config dataclasses
 │   ├── data.py                  # Data loading, splitting, scaling
 │   ├── metrics.py               # RMSE, MAE, R² computation
+│   ├── settings.py              # Shared paths and default values
+│   ├── schemas/                 # Dataset/experiment config contracts
+│   ├── datasets/                # Structured data loading/splitting/preprocess layer
+│   ├── artifacts/               # Run artifact storage helpers
+│   ├── engine/                  # Experiment runner skeleton
 │   ├── training.py              # Training loop, CV ensemble, prediction
 │   ├── models/
 │   │   ├── mlp.py               # MLP model definition
 │   │   └── kan.py               # KAN model builder
 │   └── cli/                     # Command-line entry points
+│       ├── main.py              # Unified config-driven CLI (`dbp run`)
 │       ├── train_mlp.py         # Per-target baseline MLP training
 │       ├── train_kan.py         # Per-target baseline KAN training
 │       ├── tune_mlp.py          # Per-target MLP Optuna tuning
@@ -89,6 +95,23 @@ python -m dbp_prediction.cli.train_kan --targets T_THMs_ug_L
 dbp-train-mlp --seed 42
 dbp-train-kan --seed 42 --grid 8
 ```
+
+Phase 1 also adds an experiment-config bridge so the current MLP/KAN CLIs can
+read a shared YAML experiment contract without changing the training engine yet:
+
+```bash
+python -m dbp_prediction.cli.train_mlp --config experiments/per_target_baseline.yaml
+python -m dbp_prediction.cli.train_kan --config experiments/per_target_baseline.yaml
+```
+
+Phase 2 adds a unified runner skeleton that prepares a run directory, snapshots
+the resolved config, inspects the dataset, and writes a run plan:
+
+```bash
+dbp run experiments/per_target_baseline.yaml --print-plan
+```
+
+Paths inside experiment configs are resolved relative to the config file itself.
 
 ### Hyperparameter Tuning
 

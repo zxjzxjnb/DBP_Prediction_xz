@@ -9,142 +9,11 @@ Usage::
 from __future__ import annotations
 
 import argparse
-import logging
 import os
 from pathlib import Path
-from typing import Any
-
-import numpy as np
-import optuna
-import torch
-from sklearn.model_selection import KFold
 
 from dbp_prediction.config import CHECKPOINT_DIR, FEATURE_COLS, TARGET_COLS
-from dbp_prediction.data import get_train_test_split, load_dataset
-from dbp_prediction.metrics import compute_metrics
-from dbp_prediction.models.mlp import build_mlp
-from dbp_prediction.training import (
-    fit_and_eval_fold,
-    predict_with_ensemble,
-    set_seed,
-    train_cv_ensemble,
-)
-
-optuna.logging.set_verbosity(optuna.logging.WARNING)
-logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
-logger = logging.getLogger(__name__)
-
-
-# ── Optuna search space ─────────────────────────────────────────────────────
-
-
-def sample_params(trial: optuna.Trial) -> dict[str, Any]:
-    """Sample MLP hyperparameters from the Optuna search space."""
-    n_layers = trial.suggest_int("n_layers", 0, 3)
-
-    if n_layers == 0:
-        hidden_dim = 0
-        dropout = 0.0
-        activation = "ReLU"
-    else:
-        hidden_dim = trial.suggest_categorical("hidden_dim", [8, 16, 24, 32, 48, 64])
-        dropout = trial.suggest_float("dropout", 0.0, 0.5, step=0.05)
-        activation = trial.suggest_categorical(
-            "activation", ["ReLU", "LeakyReLU", "SiLU", "Tanh"],
-        )
-
-    params: dict[str, Any] = {
-        "n_layers": n_layers,
-        "hidden_dim": hidden_dim,
-        "dropout": dropout,
-        "activation": activation,
-        "lr": trial.suggest_float("lr", 3e-4, 2e-2, log=True),
-        "weight_decay": trial.suggest_float("weight_decay", 1e-7, 2e-2, log=True),
-        "batch_size": trial.suggest_categorical("batch_size", [8, 16, 32]),
-        "optimizer": trial.suggest_categorical("optimizer", ["Adam", "AdamW"]),
-        "loss": trial.suggest_categorical("loss", ["MSE", "Huber"]),
-    }
-
-    if params["loss"] == "Huber":
-        params["huber_delta"] = trial.suggest_categorical("huber_delta", [0.5, 1.0, 2.0, 4.0])
-    else:
-        params["huber_delta"] = 1.0
-
-    return params
-
-
-def normalize_best_params(params: dict[str, Any]) -> dict[str, Any]:
-    """Backfill optional keys for configurations that skip hidden layers."""
-    normalized = params.copy()
-    if int(normalized.get("n_layers", 0)) == 0:
-        normalized.setdefault("hidden_dim", 0)
-        normalized.setdefault("dropout", 0.0)
-        normalized.setdefault("activation", "ReLU")
-    normalized.setdefault("huber_delta", 1.0)
-    return normalized
-
-
-def _make_mlp_builder(in_dim: int, params: dict[str, Any]):
-    """Return a zero-arg callable that builds a fresh MLP from params."""
-    def builder():
-        return build_mlp(
-            in_dim=in_dim,
-            out_dim=1,
-            n_layers=params["n_layers"],
-            hidden_dim=params["hidden_dim"],
-            dropout=params["dropout"],
-            activation=params["activation"],
-        )
-    return builder
-
-
-# ── Objective ────────────────────────────────────────────────────────────────
-
-
-def make_objective(
-    X_train_all: np.ndarray,
-    y_train_target: np.ndarray,
-    seed: int,
-    folds: int,
-    max_epochs: int,
-    patience: int,
-    stability_penalty: float,
-):
-    """Create an Optuna objective function for a single target."""
-
-    def objective(trial: optuna.Trial) -> float:
-        params = sample_params(trial)
-        builder = _make_mlp_builder(X_train_all.shape[1], params)
-
-        kf = KFold(n_splits=folds, shuffle=True, random_state=seed)
-        fold_rmses: list[float] = []
-
-        for fold_id, (tr_idx, va_idx) in enumerate(kf.split(X_train_all), start=1):
-            fold_result = fit_and_eval_fold(
-                model_builder=builder,
-                X_all=X_train_all,
-                Y_all=y_train_target,
-                train_idx=tr_idx,
-                val_idx=va_idx,
-                params=params,
-                seed=seed + fold_id,
-                max_epochs=max_epochs,
-                patience=patience,
-            )
-            fold_rmses.append(fold_result["rmse"])
-
-            trial.report(float(np.mean(fold_rmses)), step=fold_id)
-            if trial.should_prune():
-                raise optuna.TrialPruned()
-
-        rmse_mean = float(np.mean(fold_rmses))
-        rmse_std = float(np.std(fold_rmses))
-        return rmse_mean + stability_penalty * rmse_std
-
-    return objective
-
-
-# ── CLI ──────────────────────────────────────────────────────────────────────
+from dbp_prediction.engine import PerTargetTuningRequest, run_per_target_tuning_job
 
 
 def parse_args() -> argparse.Namespace:
@@ -154,118 +23,65 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max-epochs", type=int, default=2000)
     parser.add_argument("--patience", type=int, default=100)
     parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--targets", type=str, default=",".join(TARGET_COLS),
-                        help="Comma-separated target names to tune (default: all)")
-    parser.add_argument("--stability-penalty", type=float, default=0.10,
-                        help="Objective = mean_rmse + penalty * std_rmse")
-    parser.add_argument("--out", type=str,
-                        default=str(CHECKPOINT_DIR / "mlp_tuned_checkpoint_best.pt"))
+    parser.add_argument(
+        "--targets",
+        type=str,
+        default=",".join(TARGET_COLS),
+        help="Comma-separated target names to tune (default: all)",
+    )
+    parser.add_argument(
+        "--stability-penalty",
+        type=float,
+        default=0.10,
+        help="Objective = mean_rmse + penalty * std_rmse",
+    )
+    parser.add_argument(
+        "--out",
+        type=str,
+        default=str(CHECKPOINT_DIR / "mlp_tuned_checkpoint_best.pt"),
+    )
     return parser.parse_args()
+
+
+def _parse_targets(raw_targets: str) -> list[str]:
+    selected = [target.strip() for target in raw_targets.split(",") if target.strip()]
+    unknown = sorted(set(selected) - set(TARGET_COLS))
+    if unknown:
+        raise ValueError(f"Unknown targets: {unknown}. Allowed: {TARGET_COLS}")
+    return selected
 
 
 def main() -> None:
     args = parse_args()
-    set_seed(args.seed)
-
-    df = load_dataset()
-    train_df, test_df = get_train_test_split(df)
-
-    X_train_all = train_df[FEATURE_COLS].values.astype(np.float32)
-    X_test_raw = test_df[FEATURE_COLS].values.astype(np.float32)
-    selected_targets = [t.strip() for t in args.targets.split(",") if t.strip()]
-    unknown = sorted(set(selected_targets) - set(TARGET_COLS))
-    if unknown:
-        raise ValueError(f"Unknown targets: {unknown}. Allowed: {TARGET_COLS}")
-
-    print(f"Train: {len(train_df)}, Test: {len(test_df)}")
-    print(f"Features: {len(FEATURE_COLS)}, Targets: {len(TARGET_COLS)}")
-    print(f"Trials per target: {args.trials}, CV folds: {args.folds}")
-    print(f"Max epochs: {args.max_epochs}, patience: {args.patience}\n")
-
-    target_payloads: dict[str, dict] = {}
-
-    for target_name in selected_targets:
-        target_idx = TARGET_COLS.index(target_name)
-        print("=" * 72)
-        print(f"Tuning target: {target_name}")
-        print("=" * 72)
-
-        y_train = train_df[[target_name]].values.astype(np.float32)
-        y_test = test_df[target_name].values
-
-        objective = make_objective(
-            X_train_all=X_train_all,
-            y_train_target=y_train,
-            seed=args.seed + target_idx * 1000,
-            folds=args.folds,
-            max_epochs=args.max_epochs,
-            patience=args.patience,
-            stability_penalty=args.stability_penalty,
+    run_per_target_tuning_job(
+        PerTargetTuningRequest(
+            model_name="mlp",
+            feature_cols=list(FEATURE_COLS),
+            allowed_targets=list(TARGET_COLS),
+            selected_targets=_parse_targets(args.targets),
+            base_model_params={},
+            training_params={
+                "seed": args.seed,
+                "max_epochs": args.max_epochs,
+                "patience": args.patience,
+                "max_grad_norm": 5.0,
+                "optimizer": "Adam",
+                "loss": "MSE",
+                "huber_delta": 1.0,
+                "lr": 1e-3,
+                "weight_decay": 1e-4,
+                "batch_size": 16,
+                "val_fraction": 0.15,
+            },
+            tuning_params={
+                "trials": args.trials,
+                "folds": args.folds,
+                "stability_penalty": args.stability_penalty,
+            },
+            output_path=Path(args.out),
+            show_progress_bar=True,
         )
-
-        study = optuna.create_study(
-            direction="minimize",
-            sampler=optuna.samplers.TPESampler(seed=args.seed + target_idx),
-            pruner=optuna.pruners.MedianPruner(n_startup_trials=15, n_warmup_steps=2),
-        )
-        study.optimize(objective, n_trials=args.trials, show_progress_bar=True)
-
-        best_params = normalize_best_params(study.best_trial.params.copy())
-        print(f"\nBest trial objective: {study.best_trial.value:.4f}")
-        for k, v in best_params.items():
-            print(f"  {k}: {v}")
-
-        print("\nTraining CV ensemble with best params ...")
-        builder = _make_mlp_builder(X_train_all.shape[1], best_params)
-        members, cv_summary = train_cv_ensemble(
-            model_builder=builder,
-            X_train_all=X_train_all,
-            Y_train_all=y_train,
-            params=best_params,
-            seed=args.seed + target_idx * 1000,
-            folds=args.folds,
-            max_epochs=args.max_epochs,
-            patience=args.patience,
-        )
-
-        y_pred_test = predict_with_ensemble(builder, members, X_test_raw)
-        if y_pred_test.ndim > 1:
-            y_pred_test = y_pred_test[:, 0]
-
-        test_metrics = compute_metrics(y_test, y_pred_test)
-        print(f"\nTest: RMSE={test_metrics['rmse']:.3f} "
-              f"MAE={test_metrics['mae']:.3f} R²={test_metrics['r2']:.4f}\n")
-
-        target_payloads[target_name] = {
-            "best_params": best_params,
-            "best_objective": float(study.best_trial.value),
-            "cv_summary": cv_summary,
-            "members": members,
-            "test_metrics": test_metrics,
-        }
-
-    # Final summary
-    print("=" * 72)
-    print("Final test summary")
-    print("=" * 72)
-    for name in selected_targets:
-        m = target_payloads[name]["test_metrics"]
-        print(f"  {name:15s} RMSE={m['rmse']:7.3f}  MAE={m['mae']:7.3f}  R²={m['r2']:.4f}")
-
-    out_path = Path(args.out)
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    torch.save({
-        "feature_cols": FEATURE_COLS,
-        "target_cols": selected_targets,
-        "target_payloads": target_payloads,
-        "seed": args.seed,
-        "folds": args.folds,
-        "trials": args.trials,
-        "max_epochs": args.max_epochs,
-        "patience": args.patience,
-        "stability_penalty": args.stability_penalty,
-    }, out_path)
-    print(f"\nSaved tuned ensemble checkpoint to {out_path}")
+    )
 
 
 if __name__ == "__main__":
