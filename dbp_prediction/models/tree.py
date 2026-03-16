@@ -5,12 +5,13 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+import joblib
 import numpy as np
 import torch
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_squared_error
 
-from dbp_prediction.models.base import ModelAdapter, TrainedModelArtifact, register_model_adapter
+from dbp_prediction.models.base import ModelAdapter, ModelInput, TrainedModelArtifact, register_model_adapter
 
 
 def _as_numpy(values: torch.Tensor | np.ndarray) -> np.ndarray:
@@ -51,6 +52,8 @@ def _get_xgb_regressor_class() -> type:
 class TreeRegressorAdapter(ModelAdapter):
     """Shared adapter behavior for non-Torch tabular regressors."""
 
+    step_label: str = "iteration"
+
     @property
     def estimator_label(self) -> str:
         return self.name
@@ -90,10 +93,10 @@ class TreeRegressorAdapter(ModelAdapter):
     def fit(
         self,
         *,
-        X_train: torch.Tensor,
-        Y_train: torch.Tensor,
-        X_val: torch.Tensor,
-        Y_val: torch.Tensor,
+        X_train: ModelInput,
+        Y_train: ModelInput,
+        X_val: ModelInput,
+        Y_val: ModelInput,
         in_dim: int,
         out_dim: int,
         model_params: dict[str, Any],
@@ -134,17 +137,27 @@ class TreeRegressorAdapter(ModelAdapter):
             seed=seed,
             model_state={"estimator": estimator},
             best_val=best_val,
-            best_epoch=self._best_iteration(estimator),
+            best_step=self._best_iteration(estimator),
             parameter_count=self._parameter_count(estimator),
         )
 
     def predict(
         self,
         artifact: TrainedModelArtifact,
-        X: torch.Tensor,
+        X: ModelInput,
     ) -> np.ndarray:
         estimator = artifact.model_state["estimator"]
         return _as_2d(estimator.predict(_as_numpy(X)))
+
+    @property
+    def checkpoint_extension(self) -> str:
+        return ".joblib"
+
+    def save_checkpoint(self, payload: dict[str, Any], path: str | Path) -> Path:
+        resolved = Path(path)
+        resolved.parent.mkdir(parents=True, exist_ok=True)
+        joblib.dump(payload, resolved)
+        return resolved
 
     def save(
         self,
@@ -153,7 +166,7 @@ class TreeRegressorAdapter(ModelAdapter):
     ) -> Path:
         resolved_path = Path(path)
         resolved_path.parent.mkdir(parents=True, exist_ok=True)
-        torch.save(
+        joblib.dump(
             {
                 "family": artifact.family,
                 "in_dim": artifact.in_dim,
@@ -163,7 +176,7 @@ class TreeRegressorAdapter(ModelAdapter):
                 "seed": artifact.seed,
                 "model_state": artifact.model_state,
                 "best_val": artifact.best_val,
-                "best_epoch": artifact.best_epoch,
+                "best_step": artifact.best_step,
                 "parameter_count": artifact.parameter_count,
             },
             resolved_path,
@@ -171,7 +184,12 @@ class TreeRegressorAdapter(ModelAdapter):
         return resolved_path
 
     def load(self, path: str | Path) -> TrainedModelArtifact:
-        payload = torch.load(Path(path), map_location="cpu", weights_only=False)
+        resolved = Path(path)
+        if resolved.suffix == ".joblib":
+            payload = joblib.load(resolved)
+        else:
+            payload = torch.load(resolved, map_location="cpu", weights_only=False)
+        best_step = int(payload.get("best_step", payload.get("best_epoch", 0)))
         return TrainedModelArtifact(
             family=str(payload["family"]),
             in_dim=int(payload["in_dim"]),
@@ -181,7 +199,7 @@ class TreeRegressorAdapter(ModelAdapter):
             seed=int(payload["seed"]),
             model_state=dict(payload["model_state"]),
             best_val=float(payload["best_val"]),
-            best_epoch=int(payload["best_epoch"]),
+            best_step=best_step,
             parameter_count=int(payload["parameter_count"]),
         )
 

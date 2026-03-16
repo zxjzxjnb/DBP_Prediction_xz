@@ -3,6 +3,7 @@
 from dbp_prediction.models.base import (
     MODEL_REGISTRY,
     ModelAdapter,
+    ModelInput,
     TorchModelAdapter,
     TrainedModelArtifact,
     get_model_adapter,
@@ -17,6 +18,7 @@ __all__ = [
     "MLPAdapter",
     "MODEL_REGISTRY",
     "ModelAdapter",
+    "ModelInput",
     "TorchModelAdapter",
     "TrainedModelArtifact",
     "build_kan",

@@ -59,7 +59,7 @@ class TestTrainModel:
             initial_loss = nn.MSELoss()(model(X), Y).item()
 
         # Train for a few epochs
-        model, best_val, best_epoch, _ = train_model(
+        model, best_val, best_step, _ = train_model(
             model=model,
             X_train=X[:20],
             Y_train=Y[:20],
@@ -84,7 +84,7 @@ class TestTrainModel:
         X = torch.randn(20, 4)
         Y = torch.randn(20, 1)
 
-        _, _, best_epoch, _ = train_model(
+        _, _, best_step, _ = train_model(
             model=model,
             X_train=X[:15],
             Y_train=Y[:15],
@@ -96,7 +96,7 @@ class TestTrainModel:
             verbose_every=0,
         )
         # Should stop well before max_epochs
-        assert best_epoch < 5000
+        assert best_step < 5000
 
     def test_returns_numpy_predictions(self) -> None:
         set_seed(42)

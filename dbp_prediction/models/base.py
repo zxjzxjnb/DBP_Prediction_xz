@@ -5,13 +5,21 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Union
 
 import numpy as np
 import torch
 import torch.nn as nn
 
 from dbp_prediction.training import train_model
+
+ModelInput = Union[np.ndarray, torch.Tensor]
+
+
+def _ensure_tensor(x: ModelInput) -> torch.Tensor:
+    if isinstance(x, np.ndarray):
+        return torch.from_numpy(x).float()
+    return x
 
 
 @dataclass
@@ -26,7 +34,7 @@ class TrainedModelArtifact:
     seed: int
     model_state: dict[str, Any]
     best_val: float
-    best_epoch: int
+    best_step: int
     parameter_count: int
 
 
@@ -34,15 +42,16 @@ class ModelAdapter(ABC):
     """Unified lifecycle interface for trainable models."""
 
     name: str = ""
+    step_label: str = "epoch"
 
     @abstractmethod
     def fit(
         self,
         *,
-        X_train: torch.Tensor,
-        Y_train: torch.Tensor,
-        X_val: torch.Tensor,
-        Y_val: torch.Tensor,
+        X_train: ModelInput,
+        Y_train: ModelInput,
+        X_val: ModelInput,
+        Y_val: ModelInput,
         in_dim: int,
         out_dim: int,
         model_params: dict[str, Any],
@@ -55,7 +64,7 @@ class ModelAdapter(ABC):
     def predict(
         self,
         artifact: TrainedModelArtifact,
-        X: torch.Tensor,
+        X: ModelInput,
     ) -> np.ndarray:
         """Run inference from a trained artifact."""
 
@@ -75,6 +84,31 @@ class ModelAdapter(ABC):
         """Return an adapter-owned hyperparameter search space description."""
         return {}
 
+    @property
+    def checkpoint_extension(self) -> str:
+        """File extension used for composite checkpoint files (e.g. from tuner)."""
+        return ".pt"
+
+    def save_checkpoint(self, payload: dict[str, Any], path: str | Path) -> Path:
+        """Persist a composite checkpoint dict (e.g. from tuner/trainer) to disk."""
+        resolved = Path(path)
+        resolved.parent.mkdir(parents=True, exist_ok=True)
+        torch.save(payload, resolved)
+        return resolved
+
+    @staticmethod
+    def load_checkpoint(path: str | Path) -> dict[str, Any]:
+        """Load a composite checkpoint dict from disk.
+
+        Tries ``torch.load`` first; falls back to ``joblib.load`` for
+        ``.joblib`` files so that both backends are transparently supported.
+        """
+        resolved = Path(path)
+        if resolved.suffix == ".joblib":
+            import joblib
+            return joblib.load(resolved)
+        return torch.load(resolved, map_location="cpu", weights_only=False)
+
 
 class TorchModelAdapter(ModelAdapter):
     """Shared Torch fit/predict/save/load behavior for current models."""
@@ -93,16 +127,20 @@ class TorchModelAdapter(ModelAdapter):
     def fit(
         self,
         *,
-        X_train: torch.Tensor,
-        Y_train: torch.Tensor,
-        X_val: torch.Tensor,
-        Y_val: torch.Tensor,
+        X_train: ModelInput,
+        Y_train: ModelInput,
+        X_val: ModelInput,
+        Y_val: ModelInput,
         in_dim: int,
         out_dim: int,
         model_params: dict[str, Any],
         training_params: dict[str, Any],
         seed: int,
     ) -> TrainedModelArtifact:
+        X_train = _ensure_tensor(X_train)
+        Y_train = _ensure_tensor(Y_train)
+        X_val = _ensure_tensor(X_val)
+        Y_val = _ensure_tensor(Y_val)
         model = self.build_model(
             in_dim=in_dim,
             out_dim=out_dim,
@@ -110,7 +148,7 @@ class TorchModelAdapter(ModelAdapter):
             seed=seed,
         )
         parameter_count = sum(parameter.numel() for parameter in model.parameters())
-        model, best_val, best_epoch, _ = train_model(
+        model, best_val, best_step, _ = train_model(
             model=model,
             X_train=X_train,
             Y_train=Y_train,
@@ -135,7 +173,7 @@ class TorchModelAdapter(ModelAdapter):
             seed=seed,
             model_state={key: value.detach().cpu().clone() for key, value in model.state_dict().items()},
             best_val=float(best_val),
-            best_epoch=int(best_epoch),
+            best_step=int(best_step),
             parameter_count=parameter_count,
         )
 
@@ -153,8 +191,9 @@ class TorchModelAdapter(ModelAdapter):
     def predict(
         self,
         artifact: TrainedModelArtifact,
-        X: torch.Tensor,
+        X: ModelInput,
     ) -> np.ndarray:
+        X = _ensure_tensor(X)
         model = self._restore_model(artifact)
         with torch.no_grad():
             return model(X).detach().cpu().numpy()
@@ -176,7 +215,7 @@ class TorchModelAdapter(ModelAdapter):
                 "seed": artifact.seed,
                 "model_state": artifact.model_state,
                 "best_val": artifact.best_val,
-                "best_epoch": artifact.best_epoch,
+                "best_step": artifact.best_step,
                 "parameter_count": artifact.parameter_count,
             },
             resolved_path,
@@ -188,6 +227,7 @@ class TorchModelAdapter(ModelAdapter):
         # sklearn objects (e.g. StandardScaler).  Only load checkpoints from
         # trusted sources.
         payload = torch.load(Path(path), map_location="cpu", weights_only=False)
+        best_step = int(payload.get("best_step", payload.get("best_epoch", 0)))
         return TrainedModelArtifact(
             family=str(payload["family"]),
             in_dim=int(payload["in_dim"]),
@@ -197,7 +237,7 @@ class TorchModelAdapter(ModelAdapter):
             seed=int(payload["seed"]),
             model_state=dict(payload["model_state"]),
             best_val=float(payload["best_val"]),
-            best_epoch=int(payload["best_epoch"]),
+            best_step=best_step,
             parameter_count=int(payload["parameter_count"]),
         )
 

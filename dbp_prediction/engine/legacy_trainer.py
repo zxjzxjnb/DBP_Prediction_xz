@@ -7,8 +7,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-import torch
-
 from dbp_prediction.datasets import get_train_val_split, load_dataset, prepare_data
 from dbp_prediction.engine._data_helpers import (
     dataset_payload,
@@ -150,7 +148,7 @@ def _serialize_target_payload(
         "scaler_x": data["scaler_x"],
         "scaler_y": data["scaler_y"],
         "best_val": artifact.best_val,
-        "best_epoch": artifact.best_epoch,
+        "best_step": artifact.best_step,
         "test_metrics": test_metrics,
         "hyperparams": _target_hyperparams(artifact.model_params, artifact.training_params),
         "feature_pipeline": data.get("feature_pipeline"),
@@ -243,8 +241,7 @@ def run_legacy_training_job(request: LegacyTrainingRequest) -> LegacyTrainingRes
     }
     saved = False
     if request.save_models:
-        request.output_path.parent.mkdir(parents=True, exist_ok=True)
-        torch.save(checkpoint_payload, request.output_path)
+        adapter.save_checkpoint(checkpoint_payload, request.output_path)
         saved = True
         logger.info("Model saved to %s", request.output_path)
     else:

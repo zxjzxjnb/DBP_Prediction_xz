@@ -1,0 +1,260 @@
+# Ablation Scout: pH + Temperature + UV254 only (3 features)
+#
+# Purpose:
+#   - Explore hyperparameter landscape with reduced feature set
+#   - Search spaces adapted for 3-feature input (vs 9 in full model)
+#   - Reuses stable findings from the full-feature scout where applicable
+#
+# Run:
+#   dbp run experiments/ablation_3feat_scout.yaml
+
+dataset:
+  path: ../data/DBP_dataset_DWTP_B.csv
+  format: csv
+  features:
+    - pH
+    - UV254_A_cm
+    - temp_C
+  targets:
+    - T_THMs_ug_L
+    - DBCM_ug_L
+    - BDCM_ug_L
+  split:
+    strategy: predefined
+    column: split
+    train_label: train
+    test_label: test
+
+task:
+  strategy: per_target
+
+features:
+  steps: []
+
+models:
+  # With only 3 features, max_features and max_depth need recalibration.
+  # Shallow-to-moderate depth; max_features biased toward using all features.
+  - name: random_forest
+    alias: rf
+    params:
+      n_estimators: 300
+      max_depth: 6
+      min_samples_split: 4
+      min_samples_leaf: 2
+      max_features: 1.0
+      bootstrap: true
+      max_samples: 0.9
+    tuning:
+      trials: 30
+    search_space:
+      model:
+        n_estimators:
+          type: int
+          low: 200
+          high: 450
+          step: 50
+        max_depth:
+          type: categorical
+          choices: [null, 4, 6, 8]
+        min_samples_split:
+          type: int
+          low: 2
+          high: 10
+        min_samples_leaf:
+          type: int
+          low: 1
+          high: 4
+        max_features:
+          type: categorical
+          choices: [0.7, 1.0, sqrt, log2]
+        bootstrap:
+          type: categorical
+          choices: [true, false]
+        max_samples:
+          type: float
+          low: 0.7
+          high: 1.0
+          step: 0.1
+          when:
+            bootstrap: true
+          default: null
+
+  # 3 features → colsample_bytree high, max_depth moderate,
+  # min_child_weight search broadened (signal weaker with fewer features).
+  - name: xgboost
+    alias: xgb
+    params:
+      n_estimators: 300
+      max_depth: 3
+      learning_rate: 0.08
+      min_child_weight: 5.0
+      subsample: 0.8
+      colsample_bytree: 1.0
+      reg_alpha: 0.0
+      reg_lambda: 1.0
+      gamma: 0.01
+      early_stopping_rounds: 30
+      tree_method: hist
+    tuning:
+      trials: 40
+    search_space:
+      model:
+        n_estimators:
+          type: int
+          low: 200
+          high: 500
+          step: 50
+        max_depth:
+          type: int
+          low: 2
+          high: 6
+        learning_rate:
+          type: float
+          low: 0.02
+          high: 0.25
+          log: true
+        min_child_weight:
+          type: float
+          low: 2.0
+          high: 10.0
+        subsample:
+          type: float
+          low: 0.6
+          high: 1.0
+          step: 0.1
+        colsample_bytree:
+          type: categorical
+          choices: [0.7, 0.8, 0.9, 1.0]
+        gamma:
+          type: float
+          low: 0.00001
+          high: 0.3
+          log: true
+        reg_alpha:
+          type: float
+          low: 0.00000001
+          high: 0.3
+          log: true
+        reg_lambda:
+          type: float
+          low: 0.001
+          high: 10.0
+          log: true
+        early_stopping_rounds:
+          type: categorical
+          choices: [20, 30, 40]
+
+  # Smaller networks for 3-feature input; broader regularization search.
+  # Activation and loss kept searchable to verify full-model findings.
+  - name: mlp
+    alias: mlp
+    params:
+      hidden_dims: [32]
+      dropout: 0.3
+      activation: SiLU
+    tuning:
+      trials: 30
+    search_space:
+      model:
+        hidden_dims:
+          type: categorical
+          choices: ["16", "32", "16-8", "32-16", "32-32", "32-32-32"]
+          value_map:
+            "16": [16]
+            "32": [32]
+            "16-8": [16, 8]
+            "32-16": [32, 16]
+            "32-32": [32, 32]
+            "32-32-32": [32, 32, 32]
+        dropout:
+          type: float
+          low: 0.15
+          high: 0.5
+          step: 0.05
+        activation:
+          type: categorical
+          choices: [SiLU, LeakyReLU, Tanh]
+      training:
+        lr:
+          type: float
+          low: 0.001
+          high: 0.02
+          log: true
+        weight_decay:
+          type: categorical
+          choices: [0.0000001, 0.000001, 0.00001, 0.0001, 0.001, 0.01, 0.02, 0.05]
+        batch_size:
+          type: categorical
+          choices: [8, 16, 32]
+        optimizer: null
+        loss:
+          type: categorical
+          choices: [MSE, Huber]
+        huber_delta:
+          type: categorical
+          choices: [0.5, 1.0]
+
+  # grid=3 and k=5 carried over from full-model experiments.
+  # Smaller hidden_dims candidates for 3-feature input.
+  - name: kan
+    alias: kan
+    params:
+      hidden_dims: [16, 8]
+      grid: 3
+      k: 5
+      base_fun: silu
+    tuning:
+      trials: 25
+    search_space:
+      model:
+        hidden_dims:
+          type: categorical
+          choices: ["16", "24-12", "16-8", "32"]
+          value_map:
+            "16": [16]
+            "24-12": [24, 12]
+            "16-8": [16, 8]
+            "32": [32]
+        grid: null
+        k:
+          type: categorical
+          choices: [3, 5]
+      training:
+        lr:
+          type: float
+          low: 0.002
+          high: 0.01
+          log: true
+        weight_decay:
+          type: float
+          low: 0.0000001
+          high: 0.005
+          log: true
+        batch_size:
+          type: categorical
+          choices: [8, 16, 32]
+        optimizer:
+          type: categorical
+          choices: [Adam, AdamW]
+
+training:
+  seed: 42
+  max_epochs: 500
+  patience: 50
+  batch_size: 16
+  lr: 0.001
+  weight_decay: 0.0001
+  val_fraction: 0.15
+  optimizer: Adam
+  loss: MSE
+
+tuning:
+  enabled: true
+  scout: true
+  folds: 3
+  stability_penalty: 0.15
+
+outputs:
+  dir: ../checkpoints/ablation_3feat
+  save_models: false
+  save_predictions: false

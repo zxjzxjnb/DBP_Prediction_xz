@@ -51,6 +51,9 @@ def _load(path: str) -> dict:
     p = Path(path)
     if not p.exists():
         raise FileNotFoundError(f"Checkpoint not found: {p}")
+    if p.suffix == ".joblib":
+        import joblib
+        return joblib.load(p)
     try:
         return torch.load(p, map_location="cpu", weights_only=False)
     except TypeError:

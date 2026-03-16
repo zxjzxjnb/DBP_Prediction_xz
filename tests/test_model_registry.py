@@ -112,7 +112,7 @@ class TestModelRegistry:
         )
 
         preds_before = adapter.predict(artifact, X_val)
-        saved_path = adapter.save(artifact, tmp_path / "rf_artifact.pt")
+        saved_path = adapter.save(artifact, tmp_path / "rf_artifact.joblib")
         loaded = adapter.load(saved_path)
         preds_after = adapter.predict(loaded, X_val)
 
@@ -165,12 +165,12 @@ class TestModelRegistry:
         )
 
         preds_before = adapter.predict(artifact, X_val)
-        saved_path = adapter.save(artifact, tmp_path / "xgb_artifact.pt")
+        saved_path = adapter.save(artifact, tmp_path / "xgb_artifact.joblib")
         loaded = adapter.load(saved_path)
         preds_after = adapter.predict(loaded, X_val)
 
         assert isinstance(artifact, TrainedModelArtifact)
-        assert artifact.best_epoch > 0
+        assert artifact.best_step > 0
         assert saved_path.exists()
         assert preds_before.shape == (6, 1)
         assert np.allclose(preds_before, preds_after)

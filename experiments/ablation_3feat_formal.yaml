@@ -1,0 +1,273 @@
+# Ablation Formal Tuning: pH + Temperature + UV254 only (3 features)
+#
+# Refined from the ablation scout run:
+#   checkpoints/ablation_3feat/20260315T213754Z
+#
+# Key scout findings applied:
+#   - RF: max_depth=4-6, max_features=0.7, bootstrap=true, min_samples_leaf=3-4
+#   - XGB: colsample_bytree→1.0, max_depth=2-5, high reg_lambda for DBCM
+#   - MLP: T_THMs needs strong weight_decay (0.05); BDCM→Tanh+[32]; DBCM→SiLU+[32,32,32]
+#   - KAN: grid=3, k=5 confirmed; T_THMs→[16]; DBCM→[24,12]; BDCM→[32]
+#
+# Run:
+#   dbp run experiments/ablation_3feat_formal.yaml
+
+dataset:
+  path: ../data/DBP_dataset_DWTP_B.csv
+  format: csv
+  features:
+    - pH
+    - UV254_A_cm
+    - temp_C
+  targets:
+    - T_THMs_ug_L
+    - DBCM_ug_L
+    - BDCM_ug_L
+  split:
+    strategy: predefined
+    column: split
+    train_label: train
+    test_label: test
+
+task:
+  strategy: per_target
+
+features:
+  steps: []
+
+models:
+  # Scout: max_depth=4 dominated all targets; max_features=0.7, bootstrap=true stable.
+  # Narrowed around these hot spots with moderate flexibility.
+  - name: random_forest
+    alias: rf
+    params:
+      n_estimators: 350
+      max_depth: 4
+      min_samples_split: 8
+      min_samples_leaf: 4
+      max_features: 0.7
+      bootstrap: true
+      max_samples: 0.8
+    tuning:
+      trials: 50
+    search_space:
+      model:
+        n_estimators:
+          type: int
+          low: 250
+          high: 450
+          step: 50
+        max_depth:
+          type: categorical
+          choices: [null, 4, 6, 8]
+        min_samples_split:
+          type: int
+          low: 3
+          high: 10
+        min_samples_leaf:
+          type: int
+          low: 2
+          high: 4
+        max_features:
+          type: categorical
+          choices: [0.7, 1.0, sqrt]
+        bootstrap:
+          type: categorical
+          choices: [true, false]
+        max_samples:
+          type: float
+          low: 0.7
+          high: 1.0
+          step: 0.1
+          when:
+            bootstrap: true
+          default: null
+      study:
+        n_startup_trials: 12
+        n_warmup_steps: 1
+
+  # Scout: colsample_bytree=1.0 unanimous; max_depth 2-5; min_child_weight dominant.
+  # DBCM needs high reg_lambda (~2-10) and gamma; T_THMs prefers shallow trees.
+  - name: xgboost
+    alias: xgb
+    params:
+      n_estimators: 350
+      max_depth: 3
+      learning_rate: 0.15
+      min_child_weight: 8.0
+      subsample: 0.8
+      colsample_bytree: 1.0
+      reg_alpha: 0.001
+      reg_lambda: 1.0
+      gamma: 0.01
+      early_stopping_rounds: 30
+      tree_method: hist
+    tuning:
+      trials: 70
+    search_space:
+      model:
+        n_estimators:
+          type: int
+          low: 250
+          high: 500
+          step: 50
+        max_depth:
+          type: int
+          low: 2
+          high: 6
+        learning_rate:
+          type: float
+          low: 0.05
+          high: 0.25
+          log: true
+        min_child_weight:
+          type: float
+          low: 4.0
+          high: 10.0
+        subsample:
+          type: float
+          low: 0.6
+          high: 1.0
+          step: 0.1
+        colsample_bytree:
+          type: categorical
+          choices: [0.8, 0.9, 1.0]
+        gamma:
+          type: float
+          low: 0.00001
+          high: 0.3
+          log: true
+        reg_alpha:
+          type: float
+          low: 0.00000001
+          high: 0.3
+          log: true
+        reg_lambda:
+          type: float
+          low: 0.001
+          high: 10.0
+          log: true
+        early_stopping_rounds:
+          type: categorical
+          choices: [20, 30, 40]
+      study:
+        n_startup_trials: 15
+        n_warmup_steps: 1
+
+  # Scout: T_THMs→[32,16]+Tanh+wd=0.05; DBCM→[32,32,32]+SiLU+wd=1e-5;
+  # BDCM→[32]+Tanh+wd=1e-5. Strong per-target differences → keep search wide.
+  - name: mlp
+    alias: mlp
+    params:
+      hidden_dims: [32]
+      dropout: 0.35
+      activation: Tanh
+    tuning:
+      trials: 60
+    search_space:
+      model:
+        hidden_dims:
+          type: categorical
+          choices: ["16", "32", "16-8", "32-16", "32-32", "32-32-32"]
+          value_map:
+            "16": [16]
+            "32": [32]
+            "16-8": [16, 8]
+            "32-16": [32, 16]
+            "32-32": [32, 32]
+            "32-32-32": [32, 32, 32]
+        dropout:
+          type: float
+          low: 0.2
+          high: 0.5
+          step: 0.05
+        activation:
+          type: categorical
+          choices: [SiLU, LeakyReLU, Tanh]
+      training:
+        lr:
+          type: float
+          low: 0.003
+          high: 0.02
+          log: true
+        weight_decay:
+          type: categorical
+          choices: [0.000001, 0.00001, 0.0001, 0.001, 0.01, 0.02, 0.05]
+        batch_size:
+          type: categorical
+          choices: [8, 16, 32]
+        optimizer: null
+        loss:
+          type: categorical
+          choices: [MSE, Huber]
+        huber_delta:
+          type: categorical
+          choices: [0.5, 1.0]
+      study:
+        n_startup_trials: 15
+        n_warmup_steps: 2
+
+  # Scout confirmed grid=3, k=5 across all targets. Fix both.
+  # T_THMs→[16]; DBCM→[24,12]; BDCM→[32]. Keep small candidate set.
+  - name: kan
+    alias: kan
+    params:
+      hidden_dims: [16]
+      grid: 3
+      k: 5
+      base_fun: silu
+    tuning:
+      trials: 50
+    search_space:
+      model:
+        hidden_dims:
+          type: categorical
+          choices: ["16", "24-12", "32"]
+          value_map:
+            "16": [16]
+            "24-12": [24, 12]
+            "32": [32]
+        grid: null
+        k: null
+      training:
+        lr:
+          type: float
+          low: 0.003
+          high: 0.01
+          log: true
+        weight_decay:
+          type: float
+          low: 0.0000001
+          high: 0.005
+          log: true
+        batch_size:
+          type: categorical
+          choices: [8, 16, 32]
+        optimizer:
+          type: categorical
+          choices: [Adam, AdamW]
+      study:
+        n_startup_trials: 12
+        n_warmup_steps: 2
+
+training:
+  seed: 42
+  max_epochs: 1200
+  patience: 100
+  batch_size: 16
+  lr: 0.001
+  weight_decay: 0.0001
+  val_fraction: 0.15
+  optimizer: Adam
+  loss: MSE
+
+tuning:
+  enabled: true
+  scout: false
+  folds: 5
+  stability_penalty: 0.18
+
+outputs:
+  dir: ../checkpoints/ablation_3feat_formal
+  save_models: true
+  save_predictions: true

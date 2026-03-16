@@ -1,0 +1,111 @@
+# Pre-experiment (Scout): quick parameter landscape exploration for all 4 models.
+#
+# Purpose:
+#   - Identify which hyperparameters matter most (parameter importances)
+#   - Discover promising parameter ranges from top trials
+#   - Estimate achievable performance before committing to a full tuning run
+#
+# Run:
+#   dbp run experiments/scout_all_models.yaml
+#
+# After completion, check scout_analysis.json in the output directory.
+
+dataset:
+  path: ../data/DBP_dataset_DWTP_B.csv
+  format: csv
+  features:
+    - pH
+    - COD_mg_L
+    - NH4_N_mg_L
+    - NO2_N_mg_L
+    - NO3_N_mg_L
+    - Br_mg_L
+    - TOC_mg_L
+    - UV254_A_cm
+    - temp_C
+  targets:
+    - T_THMs_ug_L
+    - DBCM_ug_L
+    - BDCM_ug_L
+  split:
+    strategy: predefined
+    column: split
+    train_label: train
+    test_label: test
+
+task:
+  strategy: per_target
+
+features:
+  steps: []
+
+models:
+  - name: random_forest
+    alias: rf
+    params:
+      n_estimators: 300
+      max_depth: 8
+      min_samples_split: 2
+      min_samples_leaf: 1
+      max_features: sqrt
+      bootstrap: true
+    tuning:
+      trials: 30
+
+  - name: xgboost
+    alias: xgb
+    params:
+      n_estimators: 300
+      max_depth: 4
+      learning_rate: 0.05
+      min_child_weight: 2.0
+      subsample: 0.8
+      colsample_bytree: 0.8
+      reg_alpha: 0.0
+      reg_lambda: 1.0
+      gamma: 0.0
+      early_stopping_rounds: 20
+    tuning:
+      trials: 30
+
+  - name: mlp
+    alias: mlp
+    params:
+      hidden_dims: [32, 16]
+      dropout: 0.2
+      activation: ReLU
+    tuning:
+      trials: 25
+
+  - name: kan
+    alias: kan
+    params:
+      hidden_dims: [32, 16]
+      grid: 8
+      k: 3
+      base_fun: silu
+    tuning:
+      trials: 25
+
+# Reduced training budget for fast scouting
+training:
+  seed: 42
+  max_epochs: 500
+  patience: 50
+  batch_size: 16
+  lr: 0.001
+  weight_decay: 0.0001
+  val_fraction: 0.15
+  optimizer: Adam
+  loss: MSE
+
+tuning:
+  enabled: true
+  scout: true
+  folds: 3
+  stability_penalty: 0.15
+
+outputs:
+  dir: ../checkpoints/scout_all_models
+  save_models: false
+  save_predictions: false

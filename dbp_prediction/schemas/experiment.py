@@ -150,6 +150,32 @@ class FeaturesConfig:
 
 
 @dataclass
+class ModelTuningOverrides:
+    """Per-model overrides for tuning hyperparameters.
+
+    Any field left as ``None`` inherits the value from the global
+    :class:`TuningConfig`.
+    """
+
+    trials: int | None = None
+    folds: int | None = None
+    stability_penalty: float | None = None
+
+    @classmethod
+    def from_dict(cls, raw: dict[str, Any] | None) -> "ModelTuningOverrides | None":
+        if raw is None:
+            return None
+        raw = _ensure_mapping(raw, "models[].tuning")
+        if not raw:
+            return None
+        return cls(
+            trials=int(raw["trials"]) if "trials" in raw else None,
+            folds=int(raw["folds"]) if "folds" in raw else None,
+            stability_penalty=float(raw["stability_penalty"]) if "stability_penalty" in raw else None,
+        )
+
+
+@dataclass
 class ModelConfig:
     """A model entry in an experiment config."""
 
@@ -157,6 +183,8 @@ class ModelConfig:
     alias: str | None = None
     params: dict[str, Any] = field(default_factory=dict)
     enabled: bool = True
+    tuning: ModelTuningOverrides | None = None
+    search_space: dict[str, Any] | None = None
 
     def __post_init__(self) -> None:
         self.name = _ensure_string(self.name, "models[].name").lower()
@@ -164,15 +192,20 @@ class ModelConfig:
             self.alias = _ensure_string(self.alias, "models[].alias")
         if not isinstance(self.params, dict):
             raise ValueError("'models[].params' must be a mapping")
+        if self.search_space is not None and not isinstance(self.search_space, dict):
+            raise ValueError("'models[].search_space' must be a mapping")
 
     @classmethod
     def from_dict(cls, raw: dict[str, Any]) -> "ModelConfig":
         raw = _ensure_mapping(raw, "models[]")
+        search_space_raw = raw.get("search_space")
         return cls(
             name=raw.get("name"),
             alias=raw.get("alias"),
             params=dict(raw.get("params", {})),
             enabled=bool(raw.get("enabled", True)),
+            tuning=ModelTuningOverrides.from_dict(raw.get("tuning")),
+            search_space=dict(search_space_raw) if isinstance(search_space_raw, dict) else None,
         )
 
 
@@ -218,6 +251,7 @@ class TuningConfig:
     trials: int = DEFAULT_TRIALS
     folds: int = DEFAULT_FOLDS
     stability_penalty: float = DEFAULT_STABILITY_PENALTY
+    scout: bool = False
 
     @classmethod
     def from_dict(cls, raw: dict[str, Any] | None) -> "TuningConfig":
@@ -227,6 +261,7 @@ class TuningConfig:
             trials=int(raw.get("trials", DEFAULT_TRIALS)),
             folds=int(raw.get("folds", DEFAULT_FOLDS)),
             stability_penalty=float(raw.get("stability_penalty", DEFAULT_STABILITY_PENALTY)),
+            scout=bool(raw.get("scout", False)),
         )
 
 

@@ -111,7 +111,7 @@ def train_model(
 
     Returns
     -------
-    tuple of (model, best_val_loss, best_epoch, val_predictions_scaled)
+    tuple of (model, best_val_loss, best_step, val_predictions_scaled)
         The model is loaded with the best checkpoint state.
     """
     optimizer = make_optimizer(model, optimizer_name, lr, weight_decay)
@@ -122,7 +122,7 @@ def train_model(
     loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
     best_val = float("inf")
-    best_epoch = 0
+    best_step = 0
     wait = 0
     best_state = {k: v.detach().cpu().clone() for k, v in model.state_dict().items()}
 
@@ -150,7 +150,7 @@ def train_model(
         # --- Early stopping ---
         if val_mse < best_val:
             best_val = val_mse
-            best_epoch = epoch
+            best_step = epoch
             wait = 0
             best_state = {k: v.detach().cpu().clone() for k, v in model.state_dict().items()}
         else:
@@ -172,7 +172,7 @@ def train_model(
     with torch.no_grad():
         pred_best = model(X_val).detach().cpu().numpy()
 
-    return model, best_val, best_epoch, pred_best
+    return model, best_val, best_step, pred_best
 
 
 # ── Cross-validation fold helper ────────────────────────────────────────────
@@ -230,7 +230,7 @@ def fit_and_eval_fold(
 
     model = model_builder()
 
-    model, val_mse_scaled, best_epoch, pred_scaled = train_model(
+    model, val_mse_scaled, best_step, pred_scaled = train_model(
         model=model,
         X_train=X_tr,
         Y_train=Y_tr,
@@ -270,7 +270,7 @@ def fit_and_eval_fold(
 
     result: dict[str, Any] = {
         "val_mse_scaled": float(val_mse_scaled),
-        "best_epoch": int(best_epoch),
+        "best_step": int(best_step),
         **metrics,
     }
 
@@ -279,7 +279,7 @@ def fit_and_eval_fold(
             "model_state": {k: v.detach().cpu().clone() for k, v in model.state_dict().items()},
             "scaler_x": scaler_x,
             "scaler_y": scaler_y,
-            "best_epoch": int(best_epoch),
+            "best_step": int(best_step),
         }
 
     return result
@@ -325,7 +325,7 @@ def train_cv_ensemble(
     fold_rmses: list[float] = []
     fold_maes: list[float] = []
     fold_r2s: list[float] = []
-    fold_epochs: list[int] = []
+    fold_steps: list[int] = []
 
     for fold_id, (tr_idx, va_idx) in enumerate(kf.split(X_train_all), start=1):
         fold_result = fit_and_eval_fold(
@@ -345,12 +345,12 @@ def train_cv_ensemble(
         fold_rmses.append(fold_result["rmse"])
         fold_maes.append(fold_result["mae"])
         fold_r2s.append(fold_result["r2"])
-        fold_epochs.append(fold_result["best_epoch"])
+        fold_steps.append(fold_result["best_step"])
 
         print(
             f"    Fold {fold_id}/{folds} | RMSE={fold_result['rmse']:.3f} "
             f"MAE={fold_result['mae']:.3f} R²={fold_result['r2']:.4f} "
-            f"best_epoch={fold_result['best_epoch']}"
+            f"best_step={fold_result['best_step']}"
         )
 
     summary = {
@@ -358,7 +358,7 @@ def train_cv_ensemble(
         "cv_rmse_std": float(np.std(fold_rmses)),
         "cv_mae_mean": float(np.mean(fold_maes)),
         "cv_r2_mean": float(np.mean(fold_r2s)),
-        "cv_best_epochs": fold_epochs,
+        "cv_best_steps": fold_steps,
     }
     return members, summary
 

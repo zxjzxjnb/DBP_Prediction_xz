@@ -3,9 +3,22 @@
 from __future__ import annotations
 
 import argparse
+import logging
 from pathlib import Path
 
 from dbp_prediction.engine import ExperimentRunner
+
+
+def _setup_logging(verbosity: int = 1) -> None:
+    level = {0: logging.WARNING, 1: logging.INFO, 2: logging.DEBUG}.get(
+        verbosity, logging.DEBUG
+    )
+    logging.basicConfig(
+        level=level,
+        format="%(asctime)s %(levelname)-7s [%(name)s] %(message)s",
+        datefmt="%H:%M:%S",
+    )
+    logging.getLogger("optuna").setLevel(logging.WARNING)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -35,12 +48,27 @@ def build_parser() -> argparse.ArgumentParser:
         help="Print the generated plan summary after artifacts are written",
     )
 
+    run_parser.add_argument(
+        "-v", "--verbose",
+        action="count",
+        default=1,
+        help="Increase logging verbosity (-v for INFO, -vv for DEBUG)",
+    )
+    run_parser.add_argument(
+        "-q", "--quiet",
+        action="store_true",
+        help="Suppress progress logging (WARNING level only)",
+    )
+
     return parser
 
 
 def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
+
+    verbosity = 0 if getattr(args, "quiet", False) else getattr(args, "verbose", 1)
+    _setup_logging(verbosity)
 
     if args.command == "run":
         runner = ExperimentRunner.from_path(args.config)

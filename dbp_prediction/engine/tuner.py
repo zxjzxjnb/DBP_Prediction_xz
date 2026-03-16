@@ -12,7 +12,6 @@ from typing import Any
 import numpy as np
 import optuna
 import pandas as pd
-import torch
 from sklearn.model_selection import KFold
 
 from dbp_prediction.engine._data_helpers import (
@@ -52,6 +51,7 @@ class PerTargetTuningRequest:
     config_source: str | None = None
     feature_steps: list[dict[str, Any]] | None = None
     show_progress_bar: bool = True
+    search_space_overrides: dict[str, Any] | None = None
 
 
 @dataclass
@@ -115,7 +115,7 @@ def _serialize_member(artifact: TrainedModelArtifact, data: dict[str, Any]) -> d
         "training_params": artifact.training_params,
         "seed": artifact.seed,
         "best_val": artifact.best_val,
-        "best_epoch": artifact.best_epoch,
+        "best_step": artifact.best_step,
         "parameter_count": artifact.parameter_count,
         "scaler_x": data["scaler_x"],
         "scaler_y": data["scaler_y"],
@@ -127,6 +127,45 @@ def _serialize_member(artifact: TrainedModelArtifact, data: dict[str, Any]) -> d
 def _merge_params(base: dict[str, Any], overrides: dict[str, Any]) -> dict[str, Any]:
     merged = dict(base)
     merged.update(overrides)
+    return merged
+
+
+def _merge_search_space(
+    base: dict[str, Any],
+    overrides: dict[str, Any],
+) -> dict[str, Any]:
+    """Deep-merge YAML search-space overrides onto adapter-defined defaults.
+
+    Semantics per parameter group (``model``, ``training``):
+    * Override individual spec fields (e.g. change ``low`` / ``high`` while
+      keeping the ``type``).
+    * Add new parameters not present in the adapter defaults.
+    * Remove a parameter by setting it to ``null`` in the YAML.
+
+    The ``study`` group is a flat dict and is merged with simple update.
+    """
+    merged: dict[str, Any] = {}
+
+    for group in ("model", "training"):
+        base_group = dict(base.get(group, {}))
+        override_group = overrides.get(group)
+        if isinstance(override_group, dict):
+            for param_name, param_override in override_group.items():
+                if param_override is None:
+                    base_group.pop(param_name, None)
+                elif param_name in base_group:
+                    base_group[param_name] = {**base_group[param_name], **param_override}
+                else:
+                    base_group[param_name] = dict(param_override)
+        merged[group] = base_group
+
+    base_study = dict(base.get("study", {}))
+    override_study = overrides.get("study")
+    if isinstance(override_study, dict):
+        base_study.update(override_study)
+    if base_study:
+        merged["study"] = base_study
+
     return merged
 
 
@@ -242,7 +281,7 @@ def _run_cv_for_target(
     kf = KFold(n_splits=folds, shuffle=True, random_state=target_seed)
 
     fold_metrics: list[dict[str, float]] = []
-    fold_best_epochs: list[int] = []
+    fold_best_steps: list[int] = []
     processed_feature_cols: list[str] | None = None
     members: list[dict[str, Any]] = []
     test_predictions: list[np.ndarray] = []
@@ -259,6 +298,7 @@ def _run_cv_for_target(
             request.feature_steps,
         )
 
+        set_seed(target_seed + fold_id)
         artifact = adapter.fit(
             X_train=data["X_train"],
             Y_train=data["Y_train"],
@@ -270,7 +310,7 @@ def _run_cv_for_target(
             training_params=training_params,
             seed=target_seed + fold_id,
         )
-        fold_best_epochs.append(artifact.best_epoch)
+        fold_best_steps.append(artifact.best_step)
         if processed_feature_cols is None:
             processed_feature_cols = list(data["feature_cols_processed"])
 
@@ -297,7 +337,7 @@ def _run_cv_for_target(
         "cv_mae_std": float(np.std([fold["mae"] for fold in fold_metrics])),
         "cv_r2_mean": float(np.mean([fold["r2"] for fold in fold_metrics])),
         "cv_r2_std": float(np.std([fold["r2"] for fold in fold_metrics])),
-        "cv_best_epochs": fold_best_epochs,
+        "cv_best_steps": fold_best_steps,
         "fold_metrics": fold_metrics,
     }
 
@@ -346,6 +386,106 @@ def _create_study(search_space: dict[str, Any], seed: int) -> optuna.Study:
     )
 
 
+def _analyze_study(
+    study: optuna.Study,
+    *,
+    top_n: int = 5,
+) -> dict[str, Any]:
+    """Extract parameter importances and top trial distributions from a study.
+
+    Provides actionable insight for narrowing search spaces in subsequent runs.
+    """
+    completed = [
+        t for t in study.trials
+        if t.state == optuna.trial.TrialState.COMPLETE
+    ]
+
+    analysis: dict[str, Any] = {
+        "total_trials": len(study.trials),
+        "completed_trials": len(completed),
+        "pruned_trials": len(study.trials) - len(completed),
+    }
+
+    if len(completed) >= 2:
+        try:
+            importances = optuna.importance.get_param_importances(study)
+            analysis["parameter_importances"] = {
+                name: round(value, 4) for name, value in importances.items()
+            }
+        except Exception:
+            analysis["parameter_importances"] = None
+    else:
+        analysis["parameter_importances"] = None
+
+    sorted_trials = sorted(completed, key=lambda t: t.value)[:top_n]
+    analysis["top_trials"] = [
+        {
+            "rank": rank,
+            "objective": round(trial.value, 4),
+            "params": dict(trial.params),
+        }
+        for rank, trial in enumerate(sorted_trials, 1)
+    ]
+
+    if sorted_trials:
+        param_values: dict[str, list[Any]] = {}
+        for trial in sorted_trials:
+            for name, value in trial.params.items():
+                param_values.setdefault(name, []).append(value)
+
+        promising: dict[str, Any] = {}
+        for name, values in param_values.items():
+            if all(isinstance(v, (int, float)) for v in values):
+                promising[name] = {
+                    "min": round(min(values), 6),
+                    "max": round(max(values), 6),
+                    "median": round(float(np.median(values)), 6),
+                }
+            else:
+                counts: dict[str, int] = {}
+                for v in values:
+                    key = str(v)
+                    counts[key] = counts.get(key, 0) + 1
+                promising[name] = {"distribution": counts}
+        analysis["promising_ranges"] = promising
+
+    return analysis
+
+
+def _log_scout_analysis(analysis: dict[str, Any], target_name: str) -> None:
+    """Log a human-readable summary of parameter landscape analysis."""
+    logger.info("-" * 60)
+    logger.info("Parameter Analysis: %s", target_name)
+    logger.info(
+        "  Trials: %d completed, %d pruned",
+        analysis["completed_trials"],
+        analysis["pruned_trials"],
+    )
+
+    importances = analysis.get("parameter_importances")
+    if importances:
+        logger.info("  Parameter Importances:")
+        for name, value in importances.items():
+            bar = "\u2588" * max(1, int(value * 30))
+            logger.info("    %-25s %s  %.4f", name, bar, value)
+
+    ranges = analysis.get("promising_ranges", {})
+    if ranges:
+        n_top = len(analysis.get("top_trials", []))
+        logger.info("  Promising Ranges (top %d trials):", n_top)
+        for name, info in ranges.items():
+            if "min" in info:
+                logger.info(
+                    "    %-25s [%s .. %s]  median=%s",
+                    name, info["min"], info["max"], info["median"],
+                )
+            else:
+                dist = info.get("distribution", {})
+                parts = ", ".join(f"{k}({v})" for k, v in dist.items())
+                logger.info("    %-25s %s", name, parts)
+    logger.info("-" * 60)
+
+
 def _macro_test_metrics(target_payloads: dict[str, dict[str, Any]]) -> dict[str, float]:
     return build_model_evaluation(
         label="__macro__",
@@ -361,6 +501,8 @@ def run_per_target_tuning_job(request: PerTargetTuningRequest) -> PerTargetTunin
     search_space = adapter.search_space()
     if not search_space:
         raise ValueError(f"Model adapter '{request.model_name}' does not declare a tuning search space")
+    if request.search_space_overrides:
+        search_space = _merge_search_space(search_space, request.search_space_overrides)
 
     seed = int(request.training_params["seed"])
     set_seed(seed)
@@ -392,10 +534,16 @@ def run_per_target_tuning_job(request: PerTargetTuningRequest) -> PerTargetTunin
 
         model_specs = dict(search_space.get("model", {}))
         training_specs = dict(search_space.get("training", {}))
+        stability_penalty = float(request.tuning_params["stability_penalty"])
+
+        best_so_far: dict[str, Any] = {}
 
         def objective(trial: optuna.Trial) -> float:
             _, tuned_model_params = _sample_search_group(trial, model_specs)
             _, tuned_training_params = _sample_search_group(trial, training_specs)
+
+            merged_model = _merge_params(request.base_model_params, tuned_model_params)
+            merged_training = _merge_params(request.training_params, tuned_training_params)
 
             cv_run = _run_cv_for_target(
                 request,
@@ -403,15 +551,24 @@ def run_per_target_tuning_job(request: PerTargetTuningRequest) -> PerTargetTunin
                 test_df,
                 target_name,
                 target_seed,
-                model_params=_merge_params(request.base_model_params, tuned_model_params),
-                training_params=_merge_params(request.training_params, tuned_training_params),
+                model_params=merged_model,
+                training_params=merged_training,
                 trial=trial,
                 record_members=False,
             )
             cv_summary = cv_run["cv_summary"]
-            return float(cv_summary["cv_rmse_mean"]) + float(request.tuning_params["stability_penalty"]) * float(
+            obj_value = float(cv_summary["cv_rmse_mean"]) + stability_penalty * float(
                 cv_summary["cv_rmse_std"]
             )
+
+            if not best_so_far or obj_value < best_so_far["value"]:
+                best_so_far["value"] = obj_value
+                best_so_far["model_params"] = merged_model
+                best_so_far["training_params"] = merged_training
+                best_so_far["tuned_model_params"] = tuned_model_params
+                best_so_far["tuned_training_params"] = tuned_training_params
+
+            return obj_value
 
         study = _create_study(search_space, seed + target_idx)
         study.optimize(
@@ -420,18 +577,20 @@ def run_per_target_tuning_job(request: PerTargetTuningRequest) -> PerTargetTunin
             show_progress_bar=request.show_progress_bar,
         )
 
-        tuned_model_params, tuned_training_params = _best_trial_params(study, search_space)
-        best_model_params = _merge_params(request.base_model_params, tuned_model_params)
-        best_training_params = _merge_params(request.training_params, tuned_training_params)
-        best_params = dict(tuned_model_params)
-        best_params.update(tuned_training_params)
+        scout_analysis = _analyze_study(study)
+        _log_scout_analysis(scout_analysis, target_name)
+
+        best_model_params = best_so_far["model_params"]
+        best_training_params = best_so_far["training_params"]
+        best_params = dict(best_so_far["tuned_model_params"])
+        best_params.update(best_so_far["tuned_training_params"])
 
         logger.info("Best trial objective: %.4f", study.best_trial.value)
         for key, value in best_params.items():
             logger.info("  %s: %s", key, value)
 
-        logger.info("Training CV ensemble with best params ...")
-        cv_run = _run_cv_for_target(
+        logger.info("Re-running best configuration for final evaluation...")
+        final_cv_run = _run_cv_for_target(
             request,
             train_df,
             test_df,
@@ -442,7 +601,7 @@ def run_per_target_tuning_job(request: PerTargetTuningRequest) -> PerTargetTunin
             record_members=True,
         )
 
-        test_metrics = cv_run["test_metrics"]
+        test_metrics = final_cv_run["test_metrics"]
         logger.info(
             "Test: RMSE=%.3f MAE=%.3f R²=%.4f",
             test_metrics["rmse"],
@@ -455,12 +614,13 @@ def run_per_target_tuning_job(request: PerTargetTuningRequest) -> PerTargetTunin
             "best_model_params": best_model_params,
             "best_training_params": best_training_params,
             "best_objective": float(study.best_trial.value),
-            "cv_summary": cv_run["cv_summary"],
-            "members": cv_run["members"],
+            "cv_summary": final_cv_run["cv_summary"],
+            "members": final_cv_run["members"],
             "test_metrics": test_metrics,
-            "processed_feature_cols": cv_run["processed_feature_cols"],
+            "processed_feature_cols": final_cv_run["processed_feature_cols"],
+            "scout_analysis": scout_analysis,
         }
-        test_outputs[target_name] = dict(cv_run["test_output"])
+        test_outputs[target_name] = dict(final_cv_run["test_output"])
 
     logger.info("=" * 72)
     logger.info("Final test summary")
@@ -499,8 +659,7 @@ def run_per_target_tuning_job(request: PerTargetTuningRequest) -> PerTargetTunin
 
     saved = False
     if request.save_models:
-        request.output_path.parent.mkdir(parents=True, exist_ok=True)
-        torch.save(checkpoint_payload, request.output_path)
+        adapter.save_checkpoint(checkpoint_payload, request.output_path)
         saved = True
         logger.info("Saved tuned checkpoint to %s", request.output_path)
     else:
@@ -569,7 +728,9 @@ def run_tuning_suite(
             raise ValueError(
                 f"Duplicate enabled model family '{model.name}' requires aliases for output naming"
             )
-        filename = f"{label}_tuned_checkpoint.pt"
+        adapter = get_model_adapter(model.name)
+        ext = adapter.checkpoint_extension
+        filename = f"{label}_tuned_checkpoint{ext}"
         request = PerTargetTuningRequest(
             model_name=model.name,
             feature_cols=list(config.dataset.features),
@@ -590,9 +751,10 @@ def run_tuning_suite(
                 "val_fraction": config.training.val_fraction,
             },
             tuning_params={
-                "trials": config.tuning.trials,
-                "folds": config.tuning.folds,
-                "stability_penalty": config.tuning.stability_penalty,
+                "trials": model.tuning.trials if model.tuning and model.tuning.trials is not None else config.tuning.trials,
+                "folds": model.tuning.folds if model.tuning and model.tuning.folds is not None else config.tuning.folds,
+                "stability_penalty": model.tuning.stability_penalty if model.tuning and model.tuning.stability_penalty is not None else config.tuning.stability_penalty,
+                "scout": config.tuning.scout,
             },
             output_path=resolved_output_dir / filename,
             save_models=config.outputs.save_models,
@@ -603,8 +765,27 @@ def run_tuning_suite(
                 for step in config.features.steps
             ],
             show_progress_bar=False,
+            search_space_overrides=dict(model.search_space) if model.search_space else None,
         )
         model_results[label] = run_per_target_tuning_job(request)
+
+    all_analyses: dict[str, dict[str, Any]] = {}
+    for label, result in model_results.items():
+        model_analyses = {}
+        for target_name, payload in result.target_payloads.items():
+            analysis = payload.get("scout_analysis")
+            if analysis:
+                model_analyses[target_name] = analysis
+        if model_analyses:
+            all_analyses[label] = model_analyses
+    if all_analyses:
+        import json as _json
+
+        analysis_path = resolved_output_dir / "scout_analysis.json"
+        analysis_path.write_text(
+            _json.dumps(all_analyses, indent=2, default=str), encoding="utf-8"
+        )
+        logger.info("Scout analysis saved to %s", analysis_path)
 
     return TuningSuiteResult(
         output_dir=resolved_output_dir,

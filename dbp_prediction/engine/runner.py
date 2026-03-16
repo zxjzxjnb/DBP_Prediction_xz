@@ -19,6 +19,7 @@ from dbp_prediction.engine.legacy_trainer import (
     run_legacy_training_job,
 )
 from dbp_prediction.features import FeaturePipeline
+from dbp_prediction.models import get_model_adapter
 from dbp_prediction.schemas import ExperimentConfig, load_experiment_config
 from dbp_prediction.settings import RESULTS_DIR
 
@@ -353,6 +354,8 @@ class ExperimentRunner:
                     f"Duplicate enabled model label '{label}' requires unique aliases for dbp run output naming"
                 )
 
+            adapter = get_model_adapter(model.name)
+            ext = adapter.checkpoint_extension
             results[label] = run_legacy_training_job(
                 LegacyTrainingRequest(
                     model_name=model.name,
@@ -361,7 +364,7 @@ class ExperimentRunner:
                     selected_targets=selected_targets,
                     model_params=dict(model.params),
                     training_params=dict(training_params),
-                    output_path=output_dir / f"{label}_checkpoint.pt",
+                    output_path=output_dir / f"{label}_checkpoint{ext}",
                     save_models=self.config.outputs.save_models,
                     dataset=self.config.dataset,
                     config_source=str(self.config_path) if self.config_path else None,
