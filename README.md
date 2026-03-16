@@ -54,7 +54,7 @@ Key features:
 
 ```bash
 # Clone the repository
-git clone https://github.com/zxjzxjnb/DBPs-prediction-by-kan.git
+git clone https://github.com/zxjzxjnb/DBP_Prediction_xz.git
 cd DBPs-prediction-by-kan
 
 # Option 1: editable install (recommended for development)
