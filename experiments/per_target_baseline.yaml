@@ -1,0 +1,81 @@
+dataset:
+  path: ../data/DBP_dataset_DWTP_B.csv
+  format: csv
+  features:
+    - pH
+    - COD_mg_L
+    - NH4_N_mg_L
+    - NO2_N_mg_L
+    - NO3_N_mg_L
+    - Br_mg_L
+    - TOC_mg_L
+    - UV254_A_cm
+    - temp_C
+  targets:
+    - T_THMs_ug_L
+    - DBCM_ug_L
+    - BDCM_ug_L
+  split:
+    strategy: predefined
+    column: split
+    train_label: train
+    test_label: test
+
+task:
+  strategy: per_target
+
+features:
+  steps: []
+
+models:
+  - name: mlp
+    params:
+      hidden_dims: [32, 16]
+      dropout: 0.2
+      activation: ReLU
+    # Per-model tuning overrides (optional, inherits from global tuning):
+    # tuning:
+    #   trials: 60
+    # Per-model search space overrides (optional, merges with adapter defaults):
+    # search_space:
+    #   model:
+    #     dropout:
+    #       low: 0.1
+    #       high: 0.6
+    #   training:
+    #     lr:
+    #       low: 0.00001
+    #       high: 0.1
+  - name: kan
+    params:
+      hidden_dims: [32, 16]
+      grid: 8
+      k: 3
+      base_fun: silu
+    # tuning:
+    #   trials: 80
+    #   stability_penalty: 0.2
+    # search_space:
+    #   model:
+    #     grid:
+    #       low: 3
+    #       high: 20
+
+training:
+  seed: 42
+  max_epochs: 2000
+  patience: 100
+  batch_size: 16
+  lr: 0.001
+  weight_decay: 0.0001
+  val_fraction: 0.15
+  optimizer: Adam
+  loss: MSE
+
+tuning:
+  enabled: false
+
+outputs:
+  dir: ../checkpoints/phase1_example
+  save_models: true
+  save_predictions: false

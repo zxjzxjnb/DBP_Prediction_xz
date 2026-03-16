@@ -1,0 +1,264 @@
+# Ablation Scout Round 5: Full 9 features (6 feat + NH4-N + NO2-N + NO3-N)
+#
+# Builds on 6-feature ablation findings. Adding all nitrogen indicators
+# (NH4-N, NO2-N, NO3-N) completes the full feature set. These represent
+# different nitrogen species in water that may correlate with DBP formation
+# through chloramine chemistry.
+#
+# Run:
+#   dbp run experiments/ablation_9feat_scout.yaml
+
+dataset:
+  path: ../data/DBP_dataset_DWTP_B.csv
+  format: csv
+  features:
+    - pH
+    - UV254_A_cm
+    - temp_C
+    - TOC_mg_L
+    - COD_mg_L
+    - Br_mg_L
+    - NH4_N_mg_L
+    - NO2_N_mg_L
+    - NO3_N_mg_L
+  targets:
+    - T_THMs_ug_L
+    - DBCM_ug_L
+    - BDCM_ug_L
+  split:
+    strategy: predefined
+    column: split
+    train_label: train
+    test_label: test
+
+task:
+  strategy: per_target
+
+features:
+  steps: []
+
+models:
+  # 6-feat: max_features=0.5-0.7; max_depth=4-6.
+  # With 9 features, max_features needs wider range (sqrt(9)=3, log2(9)≈3.2).
+  - name: random_forest
+    alias: rf
+    params:
+      n_estimators: 350
+      max_depth: 6
+      min_samples_split: 5
+      min_samples_leaf: 2
+      max_features: sqrt
+      bootstrap: true
+      max_samples: 0.8
+    tuning:
+      trials: 30
+    search_space:
+      model:
+        n_estimators:
+          type: int
+          low: 250
+          high: 450
+          step: 50
+        max_depth:
+          type: categorical
+          choices: [null, 4, 6, 8, 10]
+        min_samples_split:
+          type: int
+          low: 2
+          high: 10
+        min_samples_leaf:
+          type: int
+          low: 1
+          high: 4
+        max_features:
+          type: categorical
+          choices: [0.3, 0.4, 0.5, 0.6, 0.7, sqrt, log2]
+        bootstrap:
+          type: categorical
+          choices: [true, false]
+        max_samples:
+          type: float
+          low: 0.7
+          high: 1.0
+          step: 0.1
+          when:
+            bootstrap: true
+          default: null
+
+  # 6-feat: colsample_bytree=0.9; subsample=0.6.
+  # With 9 features, allow wider colsample range.
+  - name: xgboost
+    alias: xgb
+    params:
+      n_estimators: 350
+      max_depth: 3
+      learning_rate: 0.08
+      min_child_weight: 8.0
+      subsample: 0.7
+      colsample_bytree: 0.7
+      reg_alpha: 0.001
+      reg_lambda: 1.0
+      gamma: 0.01
+      early_stopping_rounds: 40
+      tree_method: hist
+    tuning:
+      trials: 40
+    search_space:
+      model:
+        n_estimators:
+          type: int
+          low: 250
+          high: 500
+          step: 50
+        max_depth:
+          type: int
+          low: 2
+          high: 6
+        learning_rate:
+          type: float
+          low: 0.03
+          high: 0.25
+          log: true
+        min_child_weight:
+          type: float
+          low: 3.0
+          high: 10.0
+        subsample:
+          type: float
+          low: 0.6
+          high: 1.0
+          step: 0.1
+        colsample_bytree:
+          type: categorical
+          choices: [0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+        gamma:
+          type: float
+          low: 0.00001
+          high: 0.3
+          log: true
+        reg_alpha:
+          type: float
+          low: 0.00000001
+          high: 0.3
+          log: true
+        reg_lambda:
+          type: float
+          low: 0.001
+          high: 10.0
+          log: true
+        early_stopping_rounds:
+          type: categorical
+          choices: [20, 30, 40]
+
+  # 6-feat: T_THMs→[32,32]+LeakyReLU; DBCM→[32]+SiLU;
+  # BDCM→[32]+Tanh. With 9 inputs, may need slightly larger nets.
+  - name: mlp
+    alias: mlp
+    params:
+      hidden_dims: [32]
+      dropout: 0.3
+      activation: LeakyReLU
+    tuning:
+      trials: 30
+    search_space:
+      model:
+        hidden_dims:
+          type: categorical
+          choices: ["16", "32", "32-16", "32-32", "32-32-32", "64-32"]
+          value_map:
+            "16": [16]
+            "32": [32]
+            "32-16": [32, 16]
+            "32-32": [32, 32]
+            "32-32-32": [32, 32, 32]
+            "64-32": [64, 32]
+        dropout:
+          type: float
+          low: 0.15
+          high: 0.5
+          step: 0.05
+        activation:
+          type: categorical
+          choices: [SiLU, LeakyReLU, Tanh]
+      training:
+        lr:
+          type: float
+          low: 0.002
+          high: 0.02
+          log: true
+        weight_decay:
+          type: categorical
+          choices: [0.000001, 0.00001, 0.0001, 0.001, 0.01, 0.02, 0.05]
+        batch_size:
+          type: categorical
+          choices: [8, 16, 32]
+        optimizer: null
+        loss:
+          type: categorical
+          choices: [MSE, Huber]
+        huber_delta:
+          type: categorical
+          choices: [0.5, 1.0]
+
+  # grid=3, k=5 fixed. With 9 inputs, may need wider hidden dims.
+  - name: kan
+    alias: kan
+    params:
+      hidden_dims: [16]
+      grid: 3
+      k: 5
+      base_fun: silu
+    tuning:
+      trials: 25
+    search_space:
+      model:
+        hidden_dims:
+          type: categorical
+          choices: ["16", "24-12", "16-8", "32", "32-16"]
+          value_map:
+            "16": [16]
+            "24-12": [24, 12]
+            "16-8": [16, 8]
+            "32": [32]
+            "32-16": [32, 16]
+        grid: null
+        k: null
+      training:
+        lr:
+          type: float
+          low: 0.002
+          high: 0.01
+          log: true
+        weight_decay:
+          type: float
+          low: 0.0000001
+          high: 0.005
+          log: true
+        batch_size:
+          type: categorical
+          choices: [8, 16, 32]
+        optimizer:
+          type: categorical
+          choices: [Adam, AdamW]
+
+training:
+  seed: 42
+  max_epochs: 500
+  patience: 50
+  batch_size: 16
+  lr: 0.001
+  weight_decay: 0.0001
+  val_fraction: 0.15
+  optimizer: Adam
+  loss: MSE
+
+tuning:
+  enabled: true
+  scout: true
+  folds: 3
+  stability_penalty: 0.15
+
+outputs:
+  dir: ../checkpoints/ablation_9feat
+  save_models: false
+  save_predictions: false

@@ -1,0 +1,78 @@
+dataset:
+  path: ../data/DBP_dataset_DWTP_B.csv
+  format: csv
+  features:
+    - pH
+    - COD_mg_L
+    - NH4_N_mg_L
+    - NO2_N_mg_L
+    - NO3_N_mg_L
+    - Br_mg_L
+    - TOC_mg_L
+    - UV254_A_cm
+    - temp_C
+  targets:
+    - T_THMs_ug_L
+    - DBCM_ug_L
+    - BDCM_ug_L
+  split:
+    strategy: predefined
+    column: split
+    train_label: train
+    test_label: test
+
+task:
+  strategy: per_target
+
+features:
+  steps:
+    - name: select_columns
+      params:
+        # Starter set: pH + UV + Temperature
+        columns: [pH, UV254_A_cm, temp_C]
+    - name: impute
+      params:
+        strategy: mean
+
+models:
+  - name: random_forest
+    alias: rf
+    params:
+      n_estimators: 300
+      max_depth: 8
+      min_samples_split: 2
+      min_samples_leaf: 1
+      max_features: sqrt
+      bootstrap: true
+  - name: xgboost
+    alias: xgb
+    params:
+      n_estimators: 300
+      max_depth: 4
+      learning_rate: 0.05
+      min_child_weight: 2.0
+      subsample: 0.8
+      colsample_bytree: 0.8
+      reg_alpha: 0.0
+      reg_lambda: 1.0
+      gamma: 0.0
+      early_stopping_rounds: 20
+
+training:
+  seed: 42
+  max_epochs: 2000
+  patience: 100
+  batch_size: 16
+  lr: 0.001
+  weight_decay: 0.0001
+  val_fraction: 0.15
+  optimizer: Adam
+  loss: MSE
+
+tuning:
+  enabled: false
+
+outputs:
+  dir: ../checkpoints/tree_feature_starter
+  save_models: true
+  save_predictions: true

@@ -1,0 +1,280 @@
+# Ablation Formal Tuning Round 5: Full 9 features (6 feat + NH4-N + NO2-N + NO3-N)
+#
+# Refined from the 9-feature scout run:
+#   checkpoints/ablation_9feat/20260316T012723Z
+#
+# Key scout findings:
+#   - RF: T_THMs→log2+max_depth=10; DBCM→log2+bootstrap=false;
+#         BDCM→0.6+max_depth=8+bootstrap=true. max_depth increased with 9 features.
+#   - XGB: colsample_bytree=0.9; T_THMs→max_depth=2-3+early_stop=20;
+#          DBCM→max_depth=2-5+subsample=0.7; BDCM→max_depth=5-6+colsample=1.0
+#   - MLP: T_THMs→[32,32]+LeakyReLU+wd=0.05+dropout=0.5;
+#          DBCM→[64,32]+LeakyReLU+wd=0.001+Huber; BDCM→[32,32,32]+Tanh+wd=0.05
+#   - KAN: T_THMs→[32/32-16]+Adam+wd=0.002-0.005;
+#          DBCM→[32-16]+Adam+batch=32; BDCM→[16-8]+AdamW
+#
+# Run:
+#   dbp run experiments/ablation_9feat_formal.yaml
+
+dataset:
+  path: ../data/DBP_dataset_DWTP_B.csv
+  format: csv
+  features:
+    - pH
+    - UV254_A_cm
+    - temp_C
+    - TOC_mg_L
+    - COD_mg_L
+    - Br_mg_L
+    - NH4_N_mg_L
+    - NO2_N_mg_L
+    - NO3_N_mg_L
+  targets:
+    - T_THMs_ug_L
+    - DBCM_ug_L
+    - BDCM_ug_L
+  split:
+    strategy: predefined
+    column: split
+    train_label: train
+    test_label: test
+
+task:
+  strategy: per_target
+
+features:
+  steps: []
+
+models:
+  # Scout: max_depth increased to 8-10; max_features→log2/0.6.
+  - name: random_forest
+    alias: rf
+    params:
+      n_estimators: 300
+      max_depth: 8
+      min_samples_split: 5
+      min_samples_leaf: 2
+      max_features: log2
+      bootstrap: true
+      max_samples: 0.8
+    tuning:
+      trials: 50
+    search_space:
+      model:
+        n_estimators:
+          type: int
+          low: 250
+          high: 450
+          step: 50
+        max_depth:
+          type: categorical
+          choices: [null, 6, 8, 10]
+        min_samples_split:
+          type: int
+          low: 2
+          high: 10
+        min_samples_leaf:
+          type: int
+          low: 1
+          high: 4
+        max_features:
+          type: categorical
+          choices: [0.4, 0.5, 0.6, sqrt, log2]
+        bootstrap:
+          type: categorical
+          choices: [true, false]
+        max_samples:
+          type: float
+          low: 0.7
+          high: 1.0
+          step: 0.1
+          when:
+            bootstrap: true
+          default: null
+      study:
+        n_startup_trials: 12
+        n_warmup_steps: 1
+
+  # Scout: colsample_bytree=0.9-1.0; max_depth=2-5; subsample=0.6-0.7.
+  - name: xgboost
+    alias: xgb
+    params:
+      n_estimators: 300
+      max_depth: 3
+      learning_rate: 0.1
+      min_child_weight: 6.0
+      subsample: 0.7
+      colsample_bytree: 0.9
+      reg_alpha: 0.01
+      reg_lambda: 0.2
+      gamma: 0.01
+      early_stopping_rounds: 30
+      tree_method: hist
+    tuning:
+      trials: 70
+    search_space:
+      model:
+        n_estimators:
+          type: int
+          low: 250
+          high: 500
+          step: 50
+        max_depth:
+          type: int
+          low: 2
+          high: 6
+        learning_rate:
+          type: float
+          low: 0.03
+          high: 0.25
+          log: true
+        min_child_weight:
+          type: float
+          low: 3.0
+          high: 10.0
+        subsample:
+          type: float
+          low: 0.6
+          high: 0.8
+          step: 0.1
+        colsample_bytree:
+          type: categorical
+          choices: [0.7, 0.8, 0.9, 1.0]
+        gamma:
+          type: float
+          low: 0.00001
+          high: 0.3
+          log: true
+        reg_alpha:
+          type: float
+          low: 0.00000001
+          high: 0.3
+          log: true
+        reg_lambda:
+          type: float
+          low: 0.001
+          high: 10.0
+          log: true
+        early_stopping_rounds:
+          type: categorical
+          choices: [20, 30, 40]
+      study:
+        n_startup_trials: 15
+        n_warmup_steps: 1
+
+  # Scout: T_THMs→[32,32]+LeakyReLU+wd=0.05+dropout=0.5;
+  # DBCM→[64,32]+LeakyReLU+wd=0.001+Huber; BDCM→[32,32,32]+Tanh+wd=0.05.
+  - name: mlp
+    alias: mlp
+    params:
+      hidden_dims: [32, 32]
+      dropout: 0.4
+      activation: LeakyReLU
+    tuning:
+      trials: 60
+    search_space:
+      model:
+        hidden_dims:
+          type: categorical
+          choices: ["32", "32-16", "32-32", "32-32-32", "64-32"]
+          value_map:
+            "32": [32]
+            "32-16": [32, 16]
+            "32-32": [32, 32]
+            "32-32-32": [32, 32, 32]
+            "64-32": [64, 32]
+        dropout:
+          type: float
+          low: 0.2
+          high: 0.5
+          step: 0.05
+        activation:
+          type: categorical
+          choices: [SiLU, LeakyReLU, Tanh]
+      training:
+        lr:
+          type: float
+          low: 0.002
+          high: 0.02
+          log: true
+        weight_decay:
+          type: categorical
+          choices: [0.000001, 0.0001, 0.001, 0.01, 0.02, 0.05]
+        batch_size:
+          type: categorical
+          choices: [8, 16, 32]
+        optimizer: null
+        loss:
+          type: categorical
+          choices: [MSE, Huber]
+        huber_delta:
+          type: categorical
+          choices: [0.5, 1.0]
+      study:
+        n_startup_trials: 15
+        n_warmup_steps: 2
+
+  # grid=3, k=5 fixed. T_THMs→[32/32-16]; DBCM→[32-16]; BDCM→[16-8].
+  - name: kan
+    alias: kan
+    params:
+      hidden_dims: [32, 16]
+      grid: 3
+      k: 5
+      base_fun: silu
+    tuning:
+      trials: 50
+    search_space:
+      model:
+        hidden_dims:
+          type: categorical
+          choices: ["16-8", "24-12", "32", "32-16"]
+          value_map:
+            "16-8": [16, 8]
+            "24-12": [24, 12]
+            "32": [32]
+            "32-16": [32, 16]
+        grid: null
+        k: null
+      training:
+        lr:
+          type: float
+          low: 0.002
+          high: 0.01
+          log: true
+        weight_decay:
+          type: float
+          low: 0.0000001
+          high: 0.005
+          log: true
+        batch_size:
+          type: categorical
+          choices: [8, 16, 32]
+        optimizer:
+          type: categorical
+          choices: [Adam, AdamW]
+      study:
+        n_startup_trials: 12
+        n_warmup_steps: 2
+
+training:
+  seed: 42
+  max_epochs: 1200
+  patience: 100
+  batch_size: 16
+  lr: 0.001
+  weight_decay: 0.0001
+  val_fraction: 0.15
+  optimizer: Adam
+  loss: MSE
+
+tuning:
+  enabled: true
+  scout: false
+  folds: 5
+  stability_penalty: 0.18
+
+outputs:
+  dir: ../checkpoints/ablation_9feat_formal
+  save_models: true
+  save_predictions: true

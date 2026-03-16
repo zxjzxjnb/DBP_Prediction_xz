@@ -1,0 +1,288 @@
+# Formal per-target tuning config refined from the scout run
+# `checkpoints/scout_all_models/20260314T020616Z`.
+#
+# Intent:
+# - Keep the same 9 raw water-quality inputs as the scout run
+# - Narrow each model's search space around the scout hot spots
+# - Preserve enough room for per-target differences during formal tuning
+#
+# Run:
+#   dbp run experiments/per_target_formal_tuning_refined.yaml
+
+dataset:
+  path: ../data/DBP_dataset_DWTP_B.csv
+  format: csv
+  features:
+    - pH
+    - COD_mg_L
+    - NH4_N_mg_L
+    - NO2_N_mg_L
+    - NO3_N_mg_L
+    - Br_mg_L
+    - TOC_mg_L
+    - UV254_A_cm
+    - temp_C
+  targets:
+    - T_THMs_ug_L
+    - DBCM_ug_L
+    - BDCM_ug_L
+  split:
+    strategy: predefined
+    column: split
+    train_label: train
+    test_label: test
+
+task:
+  strategy: per_target
+
+# Keep the formal run aligned with the scout comparison first.
+# You can copy this file for ablations and change only the selected columns.
+features:
+  steps: []
+
+models:
+  # Scout summary:
+  # - Strong and stable overall
+  # - Best settings differ by target, so keep per-target tuning wide enough
+  - name: random_forest
+    alias: rf
+    params:
+      n_estimators: 350
+      max_depth: 12
+      min_samples_split: 6
+      min_samples_leaf: 2
+      max_features: 0.7
+      bootstrap: true
+      max_samples: 0.9
+    tuning:
+      trials: 60
+    search_space:
+      model:
+        n_estimators:
+          type: int
+          low: 250
+          high: 450
+          step: 50
+        max_depth:
+          type: categorical
+          choices: [null, 8, 12, 16]
+        min_samples_split:
+          type: int
+          low: 3
+          high: 10
+        min_samples_leaf:
+          type: int
+          low: 1
+          high: 3
+        max_features:
+          type: categorical
+          choices: [0.7, log2, sqrt]
+        bootstrap:
+          type: categorical
+          choices: [true, false]
+        max_samples:
+          type: float
+          low: 0.8
+          high: 1.0
+          step: 0.1
+          when:
+            bootstrap: true
+          default: null
+      study:
+        n_startup_trials: 12
+        n_warmup_steps: 1
+
+  # Scout summary:
+  # - Best macro test RMSE
+  # - Still benefits from a moderately broad tree/regularization search
+  - name: xgboost
+    alias: xgb
+    params:
+      n_estimators: 400
+      max_depth: 6
+      learning_rate: 0.06
+      min_child_weight: 8.0
+      subsample: 0.7
+      colsample_bytree: 0.9
+      reg_alpha: 0.01
+      reg_lambda: 0.5
+      gamma: 0.01
+      early_stopping_rounds: 30
+      tree_method: hist
+    tuning:
+      trials: 80
+    search_space:
+      model:
+        n_estimators:
+          type: int
+          low: 250
+          high: 500
+          step: 50
+        max_depth:
+          type: int
+          low: 2
+          high: 7
+        learning_rate:
+          type: float
+          low: 0.02
+          high: 0.2
+          log: true
+        min_child_weight:
+          type: float
+          low: 5.0
+          high: 10.0
+        subsample:
+          type: float
+          low: 0.6
+          high: 0.9
+          step: 0.1
+        colsample_bytree:
+          type: float
+          low: 0.7
+          high: 1.0
+          step: 0.1
+        gamma:
+          type: float
+          low: 0.00001
+          high: 0.3
+          log: true
+        reg_alpha:
+          type: float
+          low: 0.00000001
+          high: 0.3
+          log: true
+        reg_lambda:
+          type: float
+          low: 0.001
+          high: 10.0
+          log: true
+        early_stopping_rounds:
+          type: categorical
+          choices: [20, 30, 40]
+      study:
+        n_startup_trials: 15
+        n_warmup_steps: 1
+
+  # Scout summary:
+  # - CV objective looked strong, but test generalization lagged trees
+  # - Search is narrowed around the scout hot spots while retaining
+  #   enough flexibility for target-specific optima
+  - name: mlp
+    alias: mlp
+    params:
+      hidden_dims: [64]
+      dropout: 0.25
+      activation: LeakyReLU
+    tuning:
+      trials: 70
+    search_space:
+      model:
+        hidden_dims:
+          type: categorical
+          choices: ["64", "48", "32-32", "48-48", "32-32-32", "64-64-64"]
+          value_map:
+            "64": [64]
+            "48": [48]
+            "32-32": [32, 32]
+            "48-48": [48, 48]
+            "32-32-32": [32, 32, 32]
+            "64-64-64": [64, 64, 64]
+        dropout:
+          type: float
+          low: 0.15
+          high: 0.45
+          step: 0.05
+        activation:
+          type: categorical
+          choices: [SiLU, LeakyReLU, Tanh]
+      training:
+        lr:
+          type: float
+          low: 0.001
+          high: 0.02
+          log: true
+        weight_decay:
+          type: categorical
+          choices: [0.0000001, 0.000001, 0.00001, 0.00005, 0.0001, 0.001, 0.01, 0.02]
+        batch_size:
+          type: categorical
+          choices: [8, 16, 32]
+        optimizer: null
+        loss:
+          type: categorical
+          choices: [MSE, Huber]
+        huber_delta:
+          type: categorical
+          choices: [0.5, 1.0]
+      study:
+        n_startup_trials: 20
+        n_warmup_steps: 2
+
+  # Scout summary:
+  # - `grid=3` dominated all three targets, so fix it here
+  # - Keep a compact search around the observed k / width / lr region
+  - name: kan
+    alias: kan
+    params:
+      hidden_dims: [32, 16]
+      grid: 3
+      k: 3
+      base_fun: silu
+    tuning:
+      trials: 60
+    search_space:
+      model:
+        hidden_dims:
+          type: categorical
+          choices: ["32", "16-8", "24-12", "32-16"]
+          value_map:
+            "32": [32]
+            "16-8": [16, 8]
+            "24-12": [24, 12]
+            "32-16": [32, 16]
+        grid: null
+        k:
+          type: categorical
+          choices: [3, 5]
+      training:
+        lr:
+          type: float
+          low: 0.002
+          high: 0.008
+          log: true
+        weight_decay:
+          type: float
+          low: 0.0000001
+          high: 0.001
+          log: true
+        batch_size:
+          type: categorical
+          choices: [8, 16, 32]
+        optimizer:
+          type: categorical
+          choices: [Adam, AdamW]
+      study:
+        n_startup_trials: 12
+        n_warmup_steps: 2
+
+training:
+  seed: 42
+  max_epochs: 1200
+  patience: 100
+  batch_size: 16
+  lr: 0.001
+  weight_decay: 0.0001
+  val_fraction: 0.15
+  optimizer: Adam
+  loss: MSE
+
+tuning:
+  enabled: true
+  scout: false
+  folds: 5
+  stability_penalty: 0.18
+
+outputs:
+  dir: ../checkpoints/formal_tuning_refined
+  save_models: true
+  save_predictions: true
