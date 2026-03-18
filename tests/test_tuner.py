@@ -94,6 +94,12 @@ class TestSharedTuner:
         payload = result.target_payloads["T_THMs_ug_L"]
         assert payload["processed_feature_cols"] == ["pH", "COD_mg_L", "COD_mg_L__pow_2"]
         assert payload["members"]
+        assert result.trial_histories["T_THMs_ug_L"]
+        assert payload["trial_history"] == result.trial_histories["T_THMs_ug_L"]
+        assert "cv_rmse_mean" in result.trial_histories["T_THMs_ug_L"][0]
+        assert (tmp_path / "mlp_tuned_trial_history.json").exists()
+        assert (tmp_path / "mlp_tuned_trial_history.csv").exists()
+        assert (tmp_path / "mlp_tuned_stability_penalty_sensitivity.json").exists()
 
     def test_run_per_target_tuning_job_supports_random_forest(
         self,
@@ -168,6 +174,7 @@ class TestSharedTuner:
         assert result.checkpoint_payload["model_family"] == "random_forest"
         assert "macro_test_metrics" in result.checkpoint_payload
         assert result.target_payloads["T_THMs_ug_L"]["members"]
+        assert result.trial_histories["T_THMs_ug_L"]
 
     def test_run_tuning_suite_compares_multiple_enabled_models(
         self,
@@ -231,3 +238,6 @@ class TestSharedTuner:
         assert result.comparison["best_by_macro_rmse"] in {"baseline", "candidate"}
         assert "baseline" in result.comparison["models"]
         assert "candidate" in result.comparison["models"]
+        assert (tmp_path / "tuning_suite" / "trial_history.json").exists()
+        assert (tmp_path / "tuning_suite" / "trial_history.csv").exists()
+        assert (tmp_path / "tuning_suite" / "stability_penalty_sensitivity.json").exists()

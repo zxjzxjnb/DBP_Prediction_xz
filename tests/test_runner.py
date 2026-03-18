@@ -449,6 +449,9 @@ class TestExperimentRunner:
         assert executed.model_paths["mlp"].exists()
         assert comparison["best_by_macro_rmse"] == "mlp"
         assert plan["execution"]["mode"] == "tuning"
+        assert (executed.prepared.output_dir / "trial_history.json").exists()
+        assert (executed.prepared.output_dir / "trial_history.csv").exists()
+        assert (executed.prepared.output_dir / "stability_penalty_sensitivity.json").exists()
 
     def test_run_rejects_multi_output_until_runner_support_lands(
         self,
