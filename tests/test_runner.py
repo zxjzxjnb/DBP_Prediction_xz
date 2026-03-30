@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import numpy as np
+import pandas as pd
 import pytest
 
 from dbp_prediction.engine import ExperimentRunner
@@ -288,6 +290,65 @@ class TestExperimentRunner:
         payload = result.target_payloads["T_THMs_ug_L"]
         assert payload["feature_pipeline"] is not None
         assert payload["processed_feature_cols"] == ["pH", "COD_mg_L", "COD_mg_L__pow_2"]
+
+    def test_run_legacy_training_job_supports_drop_missing_pipeline_step(
+        self,
+        sample_dataframe: pd.DataFrame,
+        tmp_path: Path,
+    ) -> None:
+        df = sample_dataframe.copy()
+        df.loc[0, "pH"] = np.nan
+        df.loc[df.index[-1], "T_THMs_ug_L"] = np.nan
+        csv_path = tmp_path / "missing_rows.csv"
+        df.to_csv(csv_path, index=False)
+
+        dataset = DatasetSchema.from_dict(
+            {
+                "path": str(csv_path),
+                "features": [
+                    "pH",
+                    "COD_mg_L",
+                    "NH4_N_mg_L",
+                    "NO2_N_mg_L",
+                    "NO3_N_mg_L",
+                    "Br_mg_L",
+                    "TOC_mg_L",
+                    "UV254_A_cm",
+                    "temp_C",
+                ],
+                "targets": ["T_THMs_ug_L", "DBCM_ug_L", "BDCM_ug_L"],
+            }
+        )
+        request = LegacyTrainingRequest(
+            model_name="mlp",
+            feature_cols=list(dataset.features),
+            allowed_targets=list(dataset.targets),
+            selected_targets=["T_THMs_ug_L"],
+            model_params={"hidden_dims": [8], "dropout": 0.0, "activation": "ReLU"},
+            training_params={
+                "seed": 42,
+                "optimizer": "Adam",
+                "loss": "MSE",
+                "huber_delta": 1.0,
+                "max_grad_norm": 5.0,
+                "lr": 1e-3,
+                "weight_decay": 1e-4,
+                "batch_size": 8,
+                "max_epochs": 1,
+                "patience": 1,
+                "val_fraction": 0.2,
+            },
+            output_path=tmp_path / "mlp_drop_missing.pt",
+            dataset=dataset,
+            feature_steps=[{"name": "drop_missing"}],
+        )
+
+        result = run_legacy_training_job(request)
+
+        assert result.saved is True
+        output = result.test_outputs["T_THMs_ug_L"]
+        assert len(output["y_true"]) == 4
+        assert len(output["y_pred"]) == 4
 
     def test_run_legacy_training_job_supports_random_forest(
         self,

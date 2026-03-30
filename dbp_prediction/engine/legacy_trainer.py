@@ -113,11 +113,10 @@ def _prepare_target_training_data(
             test_df=test_df,
             feature_steps=request.feature_steps,
         )
-        pipeline_data["Y_test_raw"] = test_df[[target_name]].to_numpy()
         pipeline_data["train_df"] = train_df
-        pipeline_data["train_sub_df"] = train_sub_df
-        pipeline_data["val_df"] = val_df
-        pipeline_data["test_df"] = test_df
+        pipeline_data["train_sub_df"] = pipeline_data.pop("train_frame")
+        pipeline_data["val_df"] = pipeline_data.pop("val_frame")
+        pipeline_data["test_df"] = pipeline_data.pop("test_frame")
         return pipeline_data
 
     dataset = request.dataset

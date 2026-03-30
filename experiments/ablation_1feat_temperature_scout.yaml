@@ -1,0 +1,255 @@
+# Ablation Scout: Temperature only (1 feature)
+#
+# Purpose:
+#   - Benchmark how much predictive signal remains with temperature alone
+#   - Recalibrate model capacity for a 1D input space
+#   - Keep the same per-target comparison workflow as prior ablation scouts
+#
+# Run:
+#   dbp run experiments/ablation_1feat_temperature_scout.yaml
+
+dataset:
+  path: ../data/DBP_dataset_DWTP_B.csv
+  format: csv
+  features:
+    - temp_C
+  targets:
+    - T_THMs_ug_L
+    - DBCM_ug_L
+    - BDCM_ug_L
+  split:
+    strategy: predefined
+    column: split
+    train_label: train
+    test_label: test
+
+task:
+  strategy: per_target
+
+features:
+  steps: []
+
+models:
+  # Single-feature trees should stay shallow and mostly use the lone predictor.
+  - name: random_forest
+    alias: rf
+    params:
+      n_estimators: 300
+      max_depth: 4
+      min_samples_split: 4
+      min_samples_leaf: 2
+      max_features: 1.0
+      bootstrap: true
+      max_samples: 0.9
+    tuning:
+      trials: 24
+    search_space:
+      model:
+        n_estimators:
+          type: int
+          low: 200
+          high: 450
+          step: 50
+        max_depth:
+          type: categorical
+          choices: [null, 2, 4, 6, 8]
+        min_samples_split:
+          type: int
+          low: 2
+          high: 10
+        min_samples_leaf:
+          type: int
+          low: 1
+          high: 6
+        max_features:
+          type: categorical
+          choices: [1.0, sqrt, log2]
+        bootstrap:
+          type: categorical
+          choices: [true, false]
+        max_samples:
+          type: float
+          low: 0.7
+          high: 1.0
+          step: 0.1
+          when:
+            bootstrap: true
+          default: null
+
+  # For a 1D input, prefer shallow boosted trees and regularization-heavy search.
+  - name: xgboost
+    alias: xgb
+    params:
+      n_estimators: 250
+      max_depth: 2
+      learning_rate: 0.08
+      min_child_weight: 4.0
+      subsample: 0.8
+      colsample_bytree: 1.0
+      reg_alpha: 0.001
+      reg_lambda: 1.0
+      gamma: 0.01
+      early_stopping_rounds: 30
+      tree_method: hist
+    tuning:
+      trials: 30
+    search_space:
+      model:
+        n_estimators:
+          type: int
+          low: 150
+          high: 450
+          step: 50
+        max_depth:
+          type: int
+          low: 1
+          high: 4
+        learning_rate:
+          type: float
+          low: 0.02
+          high: 0.3
+          log: true
+        min_child_weight:
+          type: float
+          low: 1.0
+          high: 10.0
+        subsample:
+          type: float
+          low: 0.6
+          high: 1.0
+          step: 0.1
+        colsample_bytree:
+          type: categorical
+          choices: [0.8, 1.0]
+        gamma:
+          type: float
+          low: 0.00001
+          high: 0.5
+          log: true
+        reg_alpha:
+          type: float
+          low: 0.00000001
+          high: 0.5
+          log: true
+        reg_lambda:
+          type: float
+          low: 0.001
+          high: 15.0
+          log: true
+        early_stopping_rounds:
+          type: categorical
+          choices: [20, 30, 40]
+
+  # Small MLPs are sufficient for a scalar input; include a near-linear option.
+  - name: mlp
+    alias: mlp
+    params:
+      hidden_dims: [16]
+      dropout: 0.2
+      activation: Tanh
+    tuning:
+      trials: 24
+    search_space:
+      model:
+        hidden_dims:
+          type: categorical
+          choices: ["linear", "8", "16", "16-8", "32"]
+          value_map:
+            "linear": []
+            "8": [8]
+            "16": [16]
+            "16-8": [16, 8]
+            "32": [32]
+        dropout:
+          type: float
+          low: 0.0
+          high: 0.4
+          step: 0.05
+        activation:
+          type: categorical
+          choices: [SiLU, LeakyReLU, Tanh]
+      training:
+        lr:
+          type: float
+          low: 0.001
+          high: 0.02
+          log: true
+        weight_decay:
+          type: categorical
+          choices: [0.0000001, 0.000001, 0.00001, 0.0001, 0.001, 0.01, 0.05]
+        batch_size:
+          type: categorical
+          choices: [8, 16, 32]
+        optimizer: null
+        loss:
+          type: categorical
+          choices: [MSE, Huber]
+        huber_delta:
+          type: categorical
+          choices: [0.5, 1.0]
+
+  # Keep KAN compact; grid and spline order remain searchable once signal is 1D.
+  - name: kan
+    alias: kan
+    params:
+      hidden_dims: [8]
+      grid: 3
+      k: 5
+      base_fun: silu
+    tuning:
+      trials: 20
+    search_space:
+      model:
+        hidden_dims:
+          type: categorical
+          choices: ["8", "16", "16-8", "24-12"]
+          value_map:
+            "8": [8]
+            "16": [16]
+            "16-8": [16, 8]
+            "24-12": [24, 12]
+        grid:
+          type: categorical
+          choices: [3, 5]
+        k:
+          type: categorical
+          choices: [3, 5]
+      training:
+        lr:
+          type: float
+          low: 0.001
+          high: 0.01
+          log: true
+        weight_decay:
+          type: float
+          low: 0.0000001
+          high: 0.005
+          log: true
+        batch_size:
+          type: categorical
+          choices: [8, 16, 32]
+        optimizer:
+          type: categorical
+          choices: [Adam, AdamW]
+
+training:
+  seed: 42
+  max_epochs: 500
+  patience: 50
+  batch_size: 16
+  lr: 0.001
+  weight_decay: 0.0001
+  val_fraction: 0.15
+  optimizer: Adam
+  loss: MSE
+
+tuning:
+  enabled: true
+  scout: true
+  folds: 3
+  stability_penalty: 0.15
+
+outputs:
+  dir: ../checkpoints/ablation_1feat_temperature
+  save_models: false
+  save_predictions: false

@@ -106,6 +106,23 @@ python -m dbp_prediction.cli.tune_kan_per_target --trials 60
 python -m dbp_prediction.cli.generate_report
 ```
 
+### Research UI
+
+An English-language Streamlit workbench is included for researchers who prefer
+an interactive workflow over hand-editing YAML configs.
+
+```bash
+# Install the optional UI dependency
+pip install -e ".[ui]"
+
+# Launch the workbench
+dbp-ui
+```
+
+The UI guides users through dataset selection, model setup, shared training
+defaults, hyperparameter tuning controls, config preview, and experiment
+execution using the same backend runner as the CLI.
+
 ### Testing
 
 ```bash

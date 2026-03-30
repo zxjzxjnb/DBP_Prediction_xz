@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import logging
-
 from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
@@ -102,8 +101,9 @@ def _prepare_fold_data(
         test_df=test_df,
         feature_steps=feature_steps,
     )
-    data["Y_val_raw"] = val_df[[target_name]].to_numpy()
-    data["Y_test_raw"] = test_df[[target_name]].to_numpy()
+    data["train_df"] = data.pop("train_frame")
+    data["val_df"] = data.pop("val_frame")
+    data["test_df"] = data.pop("test_frame")
     return data
 
 
@@ -289,6 +289,7 @@ def _run_cv_for_target(
     processed_feature_cols: list[str] | None = None
     members: list[dict[str, Any]] = []
     test_predictions: list[np.ndarray] = []
+    test_truth: np.ndarray | None = None
 
     for fold_id, (train_idx, val_idx) in enumerate(kf.split(train_df), start=1):
         fold_train_df = train_df.iloc[train_idx].reset_index(drop=True)
@@ -332,6 +333,8 @@ def _run_cv_for_target(
             test_pred_scaled = adapter.predict(artifact, data["X_test"])
             test_pred_raw = inverse_predictions(test_pred_scaled, data, target_name)
             test_predictions.append(test_pred_raw)
+            if test_truth is None:
+                test_truth = data["Y_test_raw"].ravel()
             members.append(_serialize_member(artifact, data))
 
     cv_summary = {
@@ -352,14 +355,16 @@ def _run_cv_for_target(
 
     if record_members:
         ensemble_pred = np.mean(np.stack(test_predictions, axis=0), axis=0)
+        if test_truth is None:
+            raise ValueError("Expected test targets for ensemble evaluation, but none were captured.")
         test_metrics = compute_metrics(
-            test_df[target_name].to_numpy(),
+            test_truth,
             ensemble_pred.ravel(),
         )
         result["members"] = members
         result["test_metrics"] = test_metrics
         result["test_output"] = {
-            "y_true": test_df[target_name].to_numpy().ravel().tolist(),
+            "y_true": test_truth.tolist(),
             "y_pred": ensemble_pred.ravel().tolist(),
         }
 

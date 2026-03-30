@@ -33,6 +33,9 @@ dev = [
     "ruff>=0.4",
     "pre-commit>=3.0",
 ]
+ui = [
+    "streamlit>=1.40",
+]
 
 [project.scripts]
 dbp = "dbp_prediction.cli.main:main"
@@ -41,6 +44,7 @@ dbp-train-kan = "dbp_prediction.cli.train_kan:main"
 dbp-tune-mlp = "dbp_prediction.cli.tune_mlp:main"
 dbp-tune-kan-pt = "dbp_prediction.cli.tune_kan_per_target:main"
 dbp-report = "dbp_prediction.cli.generate_report:main"
+dbp-ui = "dbp_prediction.ui.launch:main"
 
 [tool.setuptools.packages.find]
 include = ["dbp_prediction*"]

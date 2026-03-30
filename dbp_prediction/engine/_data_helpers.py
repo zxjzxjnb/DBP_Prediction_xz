@@ -63,6 +63,15 @@ def inverse_predictions(
     return pred_scaled.ravel()
 
 
+def _ensure_non_empty_split(frame: pd.DataFrame, split_name: str) -> None:
+    """Raise a clear error when preprocessing removes every row from a split."""
+    if frame.empty:
+        raise ValueError(
+            f"No rows remain in the '{split_name}' split after feature pipeline preprocessing. "
+            "Check drop_missing/select_columns settings or the dataset coverage for this target."
+        )
+
+
 def prepare_pipeline_data(
     feature_cols: list[str],
     target_name: str,
@@ -91,8 +100,11 @@ def prepare_pipeline_data(
         )
         test_X_df, _ = pipeline.transform(
             test_df[feature_cols],
-            None,
+            test_df[[target_name]],
         )
+        train_frame = train_df.loc[train_X_df.index].copy()
+        val_frame = val_df.loc[val_X_df.index].copy()
+        test_frame = test_df.loc[test_X_df.index].copy()
     else:
         pipeline = None
         train_X_df = train_df[feature_cols].copy()
@@ -100,6 +112,13 @@ def prepare_pipeline_data(
         val_X_df = val_df[feature_cols].copy()
         val_y_df = val_df[[target_name]].copy()
         test_X_df = test_df[feature_cols].copy()
+        train_frame = train_df.copy()
+        val_frame = val_df.copy()
+        test_frame = test_df.copy()
+
+    _ensure_non_empty_split(train_X_df, "train")
+    _ensure_non_empty_split(val_X_df, "validation")
+    _ensure_non_empty_split(test_X_df, "test")
 
     scaler_x = None
     if pipeline is None or not pipeline.has_feature_scaler:
@@ -124,6 +143,11 @@ def prepare_pipeline_data(
         "scaler_y": scaler_y,
         "feature_pipeline": pipeline,
         "feature_cols_processed": list(train_X_df.columns),
+        "Y_val_raw": val_frame[[target_name]].to_numpy(),
+        "Y_test_raw": test_frame[[target_name]].to_numpy(),
+        "train_frame": train_frame,
+        "val_frame": val_frame,
+        "test_frame": test_frame,
     }
 
 
