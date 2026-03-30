@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+import json
 import logging
-
 from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
@@ -14,6 +14,7 @@ import optuna
 import pandas as pd
 from sklearn.model_selection import KFold
 
+from dbp_prediction.artifacts.store import to_jsonable
 from dbp_prediction.engine._data_helpers import (
     dataset_payload,
     inverse_predictions,
@@ -61,6 +62,8 @@ class PerTargetTuningResult:
     model_name: str
     output_path: Path
     target_payloads: dict[str, dict[str, Any]]
+    trial_histories: dict[str, list[dict[str, Any]]]
+    stability_penalty_sensitivity: dict[str, dict[str, Any]]
     test_outputs: dict[str, dict[str, list[float]]]
     checkpoint_payload: dict[str, Any]
     saved: bool
@@ -98,8 +101,9 @@ def _prepare_fold_data(
         test_df=test_df,
         feature_steps=feature_steps,
     )
-    data["Y_val_raw"] = val_df[[target_name]].to_numpy()
-    data["Y_test_raw"] = test_df[[target_name]].to_numpy()
+    data["train_df"] = data.pop("train_frame")
+    data["val_df"] = data.pop("val_frame")
+    data["test_df"] = data.pop("test_frame")
     return data
 
 
@@ -285,6 +289,7 @@ def _run_cv_for_target(
     processed_feature_cols: list[str] | None = None
     members: list[dict[str, Any]] = []
     test_predictions: list[np.ndarray] = []
+    test_truth: np.ndarray | None = None
 
     for fold_id, (train_idx, val_idx) in enumerate(kf.split(train_df), start=1):
         fold_train_df = train_df.iloc[train_idx].reset_index(drop=True)
@@ -328,6 +333,8 @@ def _run_cv_for_target(
             test_pred_scaled = adapter.predict(artifact, data["X_test"])
             test_pred_raw = inverse_predictions(test_pred_scaled, data, target_name)
             test_predictions.append(test_pred_raw)
+            if test_truth is None:
+                test_truth = data["Y_test_raw"].ravel()
             members.append(_serialize_member(artifact, data))
 
     cv_summary = {
@@ -348,14 +355,16 @@ def _run_cv_for_target(
 
     if record_members:
         ensemble_pred = np.mean(np.stack(test_predictions, axis=0), axis=0)
+        if test_truth is None:
+            raise ValueError("Expected test targets for ensemble evaluation, but none were captured.")
         test_metrics = compute_metrics(
-            test_df[target_name].to_numpy(),
+            test_truth,
             ensemble_pred.ravel(),
         )
         result["members"] = members
         result["test_metrics"] = test_metrics
         result["test_output"] = {
-            "y_true": test_df[target_name].to_numpy().ravel().tolist(),
+            "y_true": test_truth.tolist(),
             "y_pred": ensemble_pred.ravel().tolist(),
         }
 
@@ -486,6 +495,232 @@ def _log_scout_analysis(analysis: dict[str, Any], target_name: str) -> None:
     logger.info("-" * 60)
 
 
+def _last_intermediate_value(trial: optuna.trial.FrozenTrial) -> float | None:
+    if not trial.intermediate_values:
+        return None
+    last_step = max(trial.intermediate_values)
+    return float(trial.intermediate_values[last_step])
+
+
+def _build_trial_history(
+    study: optuna.Study,
+    *,
+    stability_penalty: float,
+) -> list[dict[str, Any]]:
+    history: list[dict[str, Any]] = []
+
+    for trial in sorted(study.trials, key=lambda item: item.number):
+        attrs = dict(trial.user_attrs)
+        history.append(
+            {
+                "trial_number": int(trial.number),
+                "state": trial.state.name,
+                "objective": float(trial.value) if trial.value is not None else None,
+                "reported_step_count": int(max(trial.intermediate_values)) if trial.intermediate_values else None,
+                "reported_cv_rmse_mean": _last_intermediate_value(trial),
+                "stability_penalty": float(stability_penalty),
+                "penalty_component": attrs.get("penalty_component"),
+                "cv_rmse_mean": attrs.get("cv_rmse_mean"),
+                "cv_rmse_std": attrs.get("cv_rmse_std"),
+                "cv_mae_mean": attrs.get("cv_mae_mean"),
+                "cv_mae_std": attrs.get("cv_mae_std"),
+                "cv_r2_mean": attrs.get("cv_r2_mean"),
+                "cv_r2_std": attrs.get("cv_r2_std"),
+                "cv_best_steps": attrs.get("cv_best_steps"),
+                "fold_metrics": attrs.get("fold_metrics"),
+                "raw_params": dict(trial.params),
+                "tuned_model_params": attrs.get("tuned_model_params", {}),
+                "tuned_training_params": attrs.get("tuned_training_params", {}),
+                "model_params": attrs.get("model_params", {}),
+                "training_params": attrs.get("training_params", {}),
+            }
+        )
+
+    return history
+
+
+def _estimate_stability_penalty_sensitivity(
+    trial_history: list[dict[str, Any]],
+    *,
+    current_penalty: float,
+    top_n: int = 8,
+) -> dict[str, Any]:
+    completed = [
+        record for record in trial_history
+        if record["state"] == "COMPLETE"
+        and record["cv_rmse_mean"] is not None
+        and record["cv_rmse_std"] is not None
+    ]
+    ranked = sorted(
+        completed,
+        key=lambda record: (float(record["cv_rmse_mean"]), float(record["cv_rmse_std"])),
+    )[:top_n]
+
+    switch_points: list[float] = []
+    for idx, left in enumerate(ranked):
+        left_mean = float(left["cv_rmse_mean"])
+        left_std = float(left["cv_rmse_std"])
+        for right in ranked[idx + 1:]:
+            right_mean = float(right["cv_rmse_mean"])
+            right_std = float(right["cv_rmse_std"])
+
+            # Only trade-off pairs can flip ranking as lambda changes.
+            if left_mean < right_mean and left_std > right_std:
+                switch = (right_mean - left_mean) / (left_std - right_std)
+            elif right_mean < left_mean and right_std > left_std:
+                switch = (left_mean - right_mean) / (right_std - left_std)
+            else:
+                continue
+
+            if np.isfinite(switch) and switch >= 0:
+                switch_points.append(round(float(switch), 6))
+
+    switch_points = sorted(set(switch_points))
+    sensitivity: dict[str, Any] = {
+        "current_penalty": round(float(current_penalty), 6),
+        "completed_trials": len(completed),
+        "top_n_considered": len(ranked),
+        "switch_points": switch_points,
+    }
+
+    if not switch_points:
+        sensitivity["status"] = "insensitive"
+        sensitivity["summary"] = (
+            "No trade-off switch points found among the top completed trials. "
+            "Changing lambda is unlikely to alter the top-ranked configuration much."
+        )
+        return sensitivity
+
+    quartiles = {
+        "min": round(float(np.min(switch_points)), 6),
+        "q25": round(float(np.quantile(switch_points, 0.25)), 6),
+        "median": round(float(np.quantile(switch_points, 0.5)), 6),
+        "q75": round(float(np.quantile(switch_points, 0.75)), 6),
+        "max": round(float(np.max(switch_points)), 6),
+    }
+    sensitivity["status"] = "ok"
+    sensitivity["informative_range"] = quartiles
+
+    if current_penalty < quartiles["q25"]:
+        position = "below"
+    elif current_penalty > quartiles["q75"]:
+        position = "above"
+    else:
+        position = "within"
+    sensitivity["current_penalty_position"] = position
+
+    return sensitivity
+
+
+def _serialize_csv_cell(value: Any) -> Any:
+    if value is None:
+        return ""
+    if isinstance(value, (dict, list)):
+        return json.dumps(to_jsonable(value), sort_keys=True)
+    return value
+
+
+def _flatten_prefixed(prefix: str, values: dict[str, Any]) -> dict[str, Any]:
+    flat: dict[str, Any] = {}
+    for key, value in values.items():
+        flat[f"{prefix}__{key}"] = _serialize_csv_cell(value)
+    return flat
+
+
+def _trial_history_rows(
+    *,
+    model_label: str,
+    model_name: str,
+    target_name: str,
+    trial_history: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    for record in trial_history:
+        row = {
+            "model_label": model_label,
+            "model_name": model_name,
+            "target_name": target_name,
+            "trial_number": record["trial_number"],
+            "state": record["state"],
+            "objective": record["objective"],
+            "reported_step_count": record["reported_step_count"],
+            "reported_cv_rmse_mean": record["reported_cv_rmse_mean"],
+            "cv_rmse_mean": record["cv_rmse_mean"],
+            "cv_rmse_std": record["cv_rmse_std"],
+            "penalty_component": record["penalty_component"],
+            "stability_penalty": record["stability_penalty"],
+            "cv_mae_mean": record["cv_mae_mean"],
+            "cv_mae_std": record["cv_mae_std"],
+            "cv_r2_mean": record["cv_r2_mean"],
+            "cv_r2_std": record["cv_r2_std"],
+            "cv_best_steps_json": _serialize_csv_cell(record["cv_best_steps"]),
+            "fold_metrics_json": _serialize_csv_cell(record["fold_metrics"]),
+            "raw_params_json": _serialize_csv_cell(record["raw_params"]),
+            "tuned_model_params_json": _serialize_csv_cell(record["tuned_model_params"]),
+            "tuned_training_params_json": _serialize_csv_cell(record["tuned_training_params"]),
+            "model_params_json": _serialize_csv_cell(record["model_params"]),
+            "training_params_json": _serialize_csv_cell(record["training_params"]),
+        }
+        row.update(_flatten_prefixed("raw_param", dict(record["raw_params"])))
+        row.update(_flatten_prefixed("tuned_model", dict(record["tuned_model_params"])))
+        row.update(_flatten_prefixed("tuned_training", dict(record["tuned_training_params"])))
+        row.update(_flatten_prefixed("model", dict(record["model_params"])))
+        row.update(_flatten_prefixed("training", dict(record["training_params"])))
+        rows.append(row)
+
+    return rows
+
+
+def _write_json_artifact(path: Path, payload: Any) -> Path:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(to_jsonable(payload), indent=2, sort_keys=True),
+        encoding="utf-8",
+    )
+    return path
+
+
+def _write_trial_history_artifacts(
+    root_dir: Path,
+    *,
+    file_prefix: str,
+    model_label: str,
+    model_name: str,
+    trial_histories: dict[str, list[dict[str, Any]]],
+    stability_penalty_sensitivity: dict[str, dict[str, Any]],
+) -> tuple[Path, Path, Path]:
+    payload = {
+        "model_label": model_label,
+        "model_name": model_name,
+        "targets": trial_histories,
+        "stability_penalty_sensitivity": stability_penalty_sensitivity,
+    }
+    json_path = _write_json_artifact(root_dir / f"{file_prefix}_trial_history.json", payload)
+    sensitivity_path = _write_json_artifact(
+        root_dir / f"{file_prefix}_stability_penalty_sensitivity.json",
+        stability_penalty_sensitivity,
+    )
+
+    rows: list[dict[str, Any]] = []
+    for target_name, history in trial_histories.items():
+        rows.extend(
+            _trial_history_rows(
+                model_label=model_label,
+                model_name=model_name,
+                target_name=target_name,
+                trial_history=history,
+            )
+        )
+    csv_path = root_dir / f"{file_prefix}_trial_history.csv"
+    csv_path.parent.mkdir(parents=True, exist_ok=True)
+    pd.DataFrame(rows).sort_values(
+        by=["target_name", "trial_number"],
+        kind="stable",
+    ).to_csv(csv_path, index=False)
+
+    return json_path, csv_path, sensitivity_path
+
+
 def _macro_test_metrics(target_payloads: dict[str, dict[str, Any]]) -> dict[str, float]:
     return build_model_evaluation(
         label="__macro__",
@@ -524,6 +759,8 @@ def run_per_target_tuning_job(request: PerTargetTuningRequest) -> PerTargetTunin
     )
 
     target_payloads: dict[str, dict[str, Any]] = {}
+    trial_histories: dict[str, list[dict[str, Any]]] = {}
+    stability_penalty_sensitivity: dict[str, dict[str, Any]] = {}
     test_outputs: dict[str, dict[str, list[float]]] = {}
 
     for target_idx, target_name in enumerate(request.selected_targets):
@@ -544,6 +781,10 @@ def run_per_target_tuning_job(request: PerTargetTuningRequest) -> PerTargetTunin
 
             merged_model = _merge_params(request.base_model_params, tuned_model_params)
             merged_training = _merge_params(request.training_params, tuned_training_params)
+            trial.set_user_attr("tuned_model_params", dict(tuned_model_params))
+            trial.set_user_attr("tuned_training_params", dict(tuned_training_params))
+            trial.set_user_attr("model_params", dict(merged_model))
+            trial.set_user_attr("training_params", dict(merged_training))
 
             cv_run = _run_cv_for_target(
                 request,
@@ -557,9 +798,17 @@ def run_per_target_tuning_job(request: PerTargetTuningRequest) -> PerTargetTunin
                 record_members=False,
             )
             cv_summary = cv_run["cv_summary"]
-            obj_value = float(cv_summary["cv_rmse_mean"]) + stability_penalty * float(
-                cv_summary["cv_rmse_std"]
-            )
+            penalty_component = stability_penalty * float(cv_summary["cv_rmse_std"])
+            obj_value = float(cv_summary["cv_rmse_mean"]) + penalty_component
+            trial.set_user_attr("cv_rmse_mean", float(cv_summary["cv_rmse_mean"]))
+            trial.set_user_attr("cv_rmse_std", float(cv_summary["cv_rmse_std"]))
+            trial.set_user_attr("cv_mae_mean", float(cv_summary["cv_mae_mean"]))
+            trial.set_user_attr("cv_mae_std", float(cv_summary["cv_mae_std"]))
+            trial.set_user_attr("cv_r2_mean", float(cv_summary["cv_r2_mean"]))
+            trial.set_user_attr("cv_r2_std", float(cv_summary["cv_r2_std"]))
+            trial.set_user_attr("cv_best_steps", list(cv_summary["cv_best_steps"]))
+            trial.set_user_attr("fold_metrics", list(cv_summary["fold_metrics"]))
+            trial.set_user_attr("penalty_component", float(penalty_component))
 
             if not best_so_far or obj_value < best_so_far["value"]:
                 best_so_far["value"] = obj_value
@@ -577,6 +826,11 @@ def run_per_target_tuning_job(request: PerTargetTuningRequest) -> PerTargetTunin
             show_progress_bar=request.show_progress_bar,
         )
 
+        target_trial_history = _build_trial_history(study, stability_penalty=stability_penalty)
+        target_penalty_sensitivity = _estimate_stability_penalty_sensitivity(
+            target_trial_history,
+            current_penalty=stability_penalty,
+        )
         scout_analysis = _analyze_study(study)
         _log_scout_analysis(scout_analysis, target_name)
 
@@ -619,7 +873,11 @@ def run_per_target_tuning_job(request: PerTargetTuningRequest) -> PerTargetTunin
             "test_metrics": test_metrics,
             "processed_feature_cols": final_cv_run["processed_feature_cols"],
             "scout_analysis": scout_analysis,
+            "trial_history": target_trial_history,
+            "stability_penalty_sensitivity": target_penalty_sensitivity,
         }
+        trial_histories[target_name] = target_trial_history
+        stability_penalty_sensitivity[target_name] = target_penalty_sensitivity
         test_outputs[target_name] = dict(final_cv_run["test_output"])
 
     logger.info("=" * 72)
@@ -665,10 +923,24 @@ def run_per_target_tuning_job(request: PerTargetTuningRequest) -> PerTargetTunin
     else:
         logger.info("Skipping checkpoint save because outputs.save_models is false")
 
+    trial_history_json, trial_history_csv, sensitivity_json = _write_trial_history_artifacts(
+        request.output_path.parent,
+        file_prefix=request.output_path.stem,
+        model_label=request.output_path.stem,
+        model_name=request.model_name,
+        trial_histories=trial_histories,
+        stability_penalty_sensitivity=stability_penalty_sensitivity,
+    )
+    logger.info("Trial history saved to %s", trial_history_json)
+    logger.info("Trial history CSV saved to %s", trial_history_csv)
+    logger.info("Penalty sensitivity saved to %s", sensitivity_json)
+
     return PerTargetTuningResult(
         model_name=request.model_name,
         output_path=request.output_path,
         target_payloads=target_payloads,
+        trial_histories=trial_histories,
+        stability_penalty_sensitivity=stability_penalty_sensitivity,
         test_outputs=test_outputs,
         checkpoint_payload=checkpoint_payload,
         saved=saved,
@@ -779,13 +1051,44 @@ def run_tuning_suite(
         if model_analyses:
             all_analyses[label] = model_analyses
     if all_analyses:
-        import json as _json
-
         analysis_path = resolved_output_dir / "scout_analysis.json"
-        analysis_path.write_text(
-            _json.dumps(all_analyses, indent=2, default=str), encoding="utf-8"
-        )
+        _write_json_artifact(analysis_path, all_analyses)
         logger.info("Scout analysis saved to %s", analysis_path)
+
+    aggregated_trial_history = {
+        label: {
+            "model_name": result.model_name,
+            "targets": result.trial_histories,
+        }
+        for label, result in model_results.items()
+    }
+    if aggregated_trial_history:
+        _write_json_artifact(
+            resolved_output_dir / "trial_history.json",
+            aggregated_trial_history,
+        )
+        aggregated_rows: list[dict[str, Any]] = []
+        for label, result in model_results.items():
+            for target_name, history in result.trial_histories.items():
+                aggregated_rows.extend(
+                    _trial_history_rows(
+                        model_label=label,
+                        model_name=result.model_name,
+                        target_name=target_name,
+                        trial_history=history,
+                    )
+                )
+        pd.DataFrame(aggregated_rows).sort_values(
+            by=["model_label", "target_name", "trial_number"],
+            kind="stable",
+        ).to_csv(resolved_output_dir / "trial_history.csv", index=False)
+        _write_json_artifact(
+            resolved_output_dir / "stability_penalty_sensitivity.json",
+            {
+                label: result.stability_penalty_sensitivity
+                for label, result in model_results.items()
+            },
+        )
 
     return TuningSuiteResult(
         output_dir=resolved_output_dir,

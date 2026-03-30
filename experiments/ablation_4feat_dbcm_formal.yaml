@@ -1,0 +1,266 @@
+# Ablation Formal Tuning: DBCM only with pH + Temp + TOC + COD
+#
+# Refined from the 4-feature DBCM-only scout run:
+#   checkpoints/ablation_4feat_dbcm/20260320T225751Z
+#
+# Key scout findings:
+#   - RF: bootstrap=true dominated; max_depth=8 and max_features=0.6-0.7 were strongest
+#   - XGB: colsample_bytree=0.9 and subsample=0.6 were very stable; depth shifted to 4-6
+#   - MLP: clear hotspot at [32,32] + LeakyReLU + Huber, usually with batch_size=8
+#   - KAN: [24,12] + AdamW + batch_size=8 dominated; lr concentrated near 0.007-0.008
+#
+# Run:
+#   dbp run experiments/ablation_4feat_dbcm_formal.yaml
+
+dataset:
+  path: ../data/DBP_dataset_DWTP_B.csv
+  format: csv
+  features:
+    - pH
+    - temp_C
+    - TOC_mg_L
+    - COD_mg_L
+  targets:
+    - DBCM_ug_L
+  split:
+    strategy: predefined
+    column: split
+    train_label: train
+    test_label: test
+
+task:
+  strategy: per_target
+  targets:
+    - DBCM_ug_L
+
+features:
+  steps: []
+
+models:
+  # Scout converged strongly to bootstrap forests with depth around 8.
+  - name: random_forest
+    alias: rf
+    params:
+      n_estimators: 350
+      max_depth: 8
+      min_samples_split: 4
+      min_samples_leaf: 3
+      max_features: 0.6
+      bootstrap: true
+      max_samples: 0.8
+    tuning:
+      trials: 45
+    search_space:
+      model:
+        n_estimators:
+          type: int
+          low: 300
+          high: 400
+          step: 50
+        max_depth:
+          type: categorical
+          choices: [6, 8, null]
+        min_samples_split:
+          type: int
+          low: 3
+          high: 6
+        min_samples_leaf:
+          type: int
+          low: 2
+          high: 4
+        max_features:
+          type: categorical
+          choices: [0.6, 0.7, log2]
+        bootstrap:
+          type: categorical
+          choices: [true]
+        max_samples:
+          type: float
+          low: 0.8
+          high: 1.0
+          step: 0.1
+          when:
+            bootstrap: true
+          default: null
+      study:
+        n_startup_trials: 10
+        n_warmup_steps: 1
+
+  # Scout locked onto colsample_bytree=0.9 and subsample=0.6, with deeper trees than the 4-feature default.
+  - name: xgboost
+    alias: xgb
+    params:
+      n_estimators: 350
+      max_depth: 5
+      learning_rate: 0.12
+      min_child_weight: 7.0
+      subsample: 0.6
+      colsample_bytree: 0.9
+      reg_alpha: 0.03
+      reg_lambda: 0.05
+      gamma: 0.005
+      early_stopping_rounds: 40
+      tree_method: hist
+    tuning:
+      trials: 55
+    search_space:
+      model:
+        n_estimators:
+          type: int
+          low: 300
+          high: 450
+          step: 50
+        max_depth:
+          type: int
+          low: 4
+          high: 6
+        learning_rate:
+          type: float
+          low: 0.08
+          high: 0.18
+          log: true
+        min_child_weight:
+          type: float
+          low: 5.0
+          high: 8.5
+        subsample:
+          type: categorical
+          choices: [0.6, 0.7]
+        colsample_bytree:
+          type: categorical
+          choices: [0.9, 1.0]
+        gamma:
+          type: float
+          low: 0.001
+          high: 0.05
+          log: true
+        reg_alpha:
+          type: float
+          low: 0.01
+          high: 0.3
+          log: true
+        reg_lambda:
+          type: float
+          low: 0.01
+          high: 2.0
+          log: true
+        early_stopping_rounds:
+          type: categorical
+          choices: [30, 40]
+      study:
+        n_startup_trials: 12
+        n_warmup_steps: 1
+
+  # Scout showed a very clear neural hotspot around 32-32 + LeakyReLU + Huber.
+  - name: mlp
+    alias: mlp
+    params:
+      hidden_dims: [32, 32]
+      dropout: 0.25
+      activation: LeakyReLU
+    tuning:
+      trials: 55
+    search_space:
+      model:
+        hidden_dims:
+          type: categorical
+          choices: ["32-16", "32-32", "64-32"]
+          value_map:
+            "32-16": [32, 16]
+            "32-32": [32, 32]
+            "64-32": [64, 32]
+        dropout:
+          type: float
+          low: 0.2
+          high: 0.35
+          step: 0.05
+        activation:
+          type: categorical
+          choices: [LeakyReLU, SiLU]
+      training:
+        lr:
+          type: float
+          low: 0.005
+          high: 0.015
+          log: true
+        weight_decay:
+          type: categorical
+          choices: [0.00001, 0.0001, 0.001]
+        batch_size:
+          type: categorical
+          choices: [8, 16]
+        optimizer: null
+        loss:
+          type: categorical
+          choices: [Huber]
+        huber_delta:
+          type: categorical
+          choices: [1.0]
+      study:
+        n_startup_trials: 12
+        n_warmup_steps: 2
+
+  # Scout preferred compact 24-12 KANs with AdamW and tiny weight decay.
+  - name: kan
+    alias: kan
+    params:
+      hidden_dims: [24, 12]
+      grid: 3
+      k: 5
+      base_fun: silu
+    tuning:
+      trials: 40
+    search_space:
+      model:
+        hidden_dims:
+          type: categorical
+          choices: ["16-8", "24-12", "32-16"]
+          value_map:
+            "16-8": [16, 8]
+            "24-12": [24, 12]
+            "32-16": [32, 16]
+        grid: null
+        k: null
+      training:
+        lr:
+          type: float
+          low: 0.005
+          high: 0.009
+          log: true
+        weight_decay:
+          type: float
+          low: 0.000001
+          high: 0.0001
+          log: true
+        batch_size:
+          type: categorical
+          choices: [8, 16]
+        optimizer:
+          type: categorical
+          choices: [AdamW]
+      study:
+        n_startup_trials: 10
+        n_warmup_steps: 2
+
+training:
+  seed: 42
+  max_epochs: 1200
+  patience: 100
+  batch_size: 16
+  lr: 0.001
+  weight_decay: 0.0001
+  val_fraction: 0.15
+  optimizer: Adam
+  loss: MSE
+
+tuning:
+  enabled: true
+  trials: 50
+  folds: 5
+  stability_penalty: 0.18
+  scout: false
+
+outputs:
+  dir: ../checkpoints/ablation_4feat_dbcm_formal
+  save_models: true
+  save_predictions: true

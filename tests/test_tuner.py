@@ -4,6 +4,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import numpy as np
+import pandas as pd
+
 from dbp_prediction.engine import (
     PerTargetTuningRequest,
     run_per_target_tuning_job,
@@ -94,6 +97,88 @@ class TestSharedTuner:
         payload = result.target_payloads["T_THMs_ug_L"]
         assert payload["processed_feature_cols"] == ["pH", "COD_mg_L", "COD_mg_L__pow_2"]
         assert payload["members"]
+        assert result.trial_histories["T_THMs_ug_L"]
+        assert payload["trial_history"] == result.trial_histories["T_THMs_ug_L"]
+        assert "cv_rmse_mean" in result.trial_histories["T_THMs_ug_L"][0]
+        assert (tmp_path / "mlp_tuned_trial_history.json").exists()
+        assert (tmp_path / "mlp_tuned_trial_history.csv").exists()
+        assert (tmp_path / "mlp_tuned_stability_penalty_sensitivity.json").exists()
+
+    def test_run_per_target_tuning_job_supports_drop_missing_pipeline_step(
+        self,
+        sample_dataframe: pd.DataFrame,
+        tmp_path: Path,
+    ) -> None:
+        df = sample_dataframe.copy()
+        df.loc[0, "pH"] = np.nan
+        df.loc[df.index[-1], "T_THMs_ug_L"] = np.nan
+        csv_path = tmp_path / "missing_rows.csv"
+        df.to_csv(csv_path, index=False)
+
+        request = PerTargetTuningRequest(
+            model_name="mlp",
+            feature_cols=[
+                "pH",
+                "COD_mg_L",
+                "NH4_N_mg_L",
+                "NO2_N_mg_L",
+                "NO3_N_mg_L",
+                "Br_mg_L",
+                "TOC_mg_L",
+                "UV254_A_cm",
+                "temp_C",
+            ],
+            allowed_targets=["T_THMs_ug_L", "DBCM_ug_L", "BDCM_ug_L"],
+            selected_targets=["T_THMs_ug_L"],
+            base_model_params={},
+            training_params={
+                "seed": 42,
+                "optimizer": "Adam",
+                "loss": "MSE",
+                "huber_delta": 1.0,
+                "max_grad_norm": 5.0,
+                "lr": 1e-3,
+                "weight_decay": 1e-4,
+                "batch_size": 8,
+                "max_epochs": 1,
+                "patience": 1,
+                "val_fraction": 0.15,
+            },
+            tuning_params={
+                "trials": 1,
+                "folds": 2,
+                "stability_penalty": 0.1,
+            },
+            output_path=tmp_path / "mlp_drop_missing_tuned.pt",
+            dataset=ExperimentConfig.from_dict(
+                {
+                    "dataset": {
+                        "path": str(csv_path),
+                        "features": [
+                            "pH",
+                            "COD_mg_L",
+                            "NH4_N_mg_L",
+                            "NO2_N_mg_L",
+                            "NO3_N_mg_L",
+                            "Br_mg_L",
+                            "TOC_mg_L",
+                            "UV254_A_cm",
+                            "temp_C",
+                        ],
+                        "targets": ["T_THMs_ug_L", "DBCM_ug_L", "BDCM_ug_L"],
+                    },
+                    "models": [{"name": "mlp"}],
+                }
+            ).dataset,
+            feature_steps=[{"name": "drop_missing"}],
+            show_progress_bar=False,
+        )
+
+        result = run_per_target_tuning_job(request)
+
+        output = result.test_outputs["T_THMs_ug_L"]
+        assert len(output["y_true"]) == 4
+        assert len(output["y_pred"]) == 4
 
     def test_run_per_target_tuning_job_supports_random_forest(
         self,
@@ -168,6 +253,7 @@ class TestSharedTuner:
         assert result.checkpoint_payload["model_family"] == "random_forest"
         assert "macro_test_metrics" in result.checkpoint_payload
         assert result.target_payloads["T_THMs_ug_L"]["members"]
+        assert result.trial_histories["T_THMs_ug_L"]
 
     def test_run_tuning_suite_compares_multiple_enabled_models(
         self,
@@ -231,3 +317,6 @@ class TestSharedTuner:
         assert result.comparison["best_by_macro_rmse"] in {"baseline", "candidate"}
         assert "baseline" in result.comparison["models"]
         assert "candidate" in result.comparison["models"]
+        assert (tmp_path / "tuning_suite" / "trial_history.json").exists()
+        assert (tmp_path / "tuning_suite" / "trial_history.csv").exists()
+        assert (tmp_path / "tuning_suite" / "stability_penalty_sensitivity.json").exists()
