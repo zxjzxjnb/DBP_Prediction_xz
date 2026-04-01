@@ -40,3 +40,6 @@ results/
 # Tooling caches
 .pytest_cache/
 .ruff_cache/
+
+# Temporary render artifacts
+tmp/

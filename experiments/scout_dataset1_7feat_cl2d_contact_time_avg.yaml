@@ -1,0 +1,107 @@
+# Dataset1 scout experiment with Cl2 dose + contact time:
+# - 7 shared Taihu features mapped to *_avg columns
+# - Adds cl2d_in_avg and time_sds_avg to the prior 5-feature backbone
+# - 3 aligned DBP targets
+# - 4 model families (RF / XGB / MLP / KAN)
+# - drop_missing removes rows with missing selected features or current target
+#
+# Run:
+#   dbp run experiments/scout_dataset1_7feat_cl2d_contact_time_avg.yaml --print-plan
+
+dataset:
+  path: ../data/dataset1_dbp_formation_with_split.csv
+  format: csv
+  features:
+    - ph_in_avg
+    - uv_in_avg
+    - temp_in_avg
+    - toc_in_avg
+    - br_in_avg
+    - cl2d_in_avg
+    - time_sds_avg
+  targets:
+    - thm4_in_avg
+    - dbcm_in_avg
+    - bdcm_in_avg
+  split:
+    strategy: predefined
+    column: split
+    train_label: train
+    test_label: test
+
+task:
+  strategy: per_target
+
+features:
+  steps:
+    - name: drop_missing
+
+models:
+  - name: random_forest
+    alias: rf
+    params:
+      n_estimators: 300
+      max_depth: 8
+      min_samples_split: 2
+      min_samples_leaf: 1
+      max_features: sqrt
+      bootstrap: true
+    tuning:
+      trials: 30
+
+  - name: xgboost
+    alias: xgb
+    params:
+      n_estimators: 300
+      max_depth: 4
+      learning_rate: 0.05
+      min_child_weight: 2.0
+      subsample: 0.8
+      colsample_bytree: 0.8
+      reg_alpha: 0.0
+      reg_lambda: 1.0
+      gamma: 0.0
+      early_stopping_rounds: 20
+    tuning:
+      trials: 30
+
+  - name: mlp
+    alias: mlp
+    params:
+      hidden_dims: [32, 16]
+      dropout: 0.2
+      activation: ReLU
+    tuning:
+      trials: 25
+
+  - name: kan
+    alias: kan
+    params:
+      hidden_dims: [32, 16]
+      grid: 8
+      k: 3
+      base_fun: silu
+    tuning:
+      trials: 25
+
+training:
+  seed: 42
+  max_epochs: 500
+  patience: 50
+  batch_size: 16
+  lr: 0.001
+  weight_decay: 0.0001
+  val_fraction: 0.15
+  optimizer: Adam
+  loss: MSE
+
+tuning:
+  enabled: true
+  scout: true
+  folds: 3
+  stability_penalty: 0.15
+
+outputs:
+  dir: ../checkpoints/scout_dataset1_7feat_cl2d_contact_time_avg
+  save_models: false
+  save_predictions: false

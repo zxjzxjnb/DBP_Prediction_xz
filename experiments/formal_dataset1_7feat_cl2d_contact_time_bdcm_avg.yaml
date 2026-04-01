@@ -1,0 +1,285 @@
+# Dataset1 formal experiment with Cl2 dose + contact time:
+# - 7 shared Taihu features mapped to *_avg columns
+# - Adds cl2d_in_avg and time_sds_avg to the prior 5-feature backbone
+# - Single-target formal run for BDCM only
+# - Formal tuning narrows around the 7-feature scout hot spots
+# - drop_missing enforces complete-case rows before fitting
+#
+# Scout reference:
+#   checkpoints/scout_dataset1_7feat_cl2d_contact_time_avg/20260331T210736Z
+#
+# Key BDCM scout signals:
+#   - MLP was the best test performer and favored [64, 64] + LeakyReLU
+#     with AdamW, batch_size=8, lr≈0.0127, and weight_decay≈0.0035.
+#   - KAN was a close secondary option and liked grid=8, k=3, [32, 16],
+#     and AdamW with modest weight decay.
+#   - RF remained stable with bootstrap=false / max_features=0.7 / depth≈8.
+#   - XGB stayed competitive but did not beat the best MLP/KAN settings.
+#
+# Run:
+#   dbp run experiments/formal_dataset1_7feat_cl2d_contact_time_bdcm_avg.yaml
+
+dataset:
+  path: ../data/dataset1_dbp_formation_with_split.csv
+  format: csv
+  features:
+    - ph_in_avg
+    - uv_in_avg
+    - temp_in_avg
+    - toc_in_avg
+    - br_in_avg
+    - cl2d_in_avg
+    - time_sds_avg
+  targets:
+    - bdcm_in_avg
+  split:
+    strategy: predefined
+    column: split
+    train_label: train
+    test_label: test
+
+task:
+  strategy: per_target
+  targets:
+    - bdcm_in_avg
+
+features:
+  steps:
+    - name: drop_missing
+
+models:
+  # RF stays as a stable comparator, but the search is tightened around the
+  # best-scoring 7-feature scout behavior.
+  - name: random_forest
+    alias: rf
+    params:
+      n_estimators: 200
+      max_depth: 8
+      min_samples_split: 2
+      min_samples_leaf: 4
+      max_features: 0.7
+      bootstrap: false
+    tuning:
+      trials: 35
+    search_space:
+      model:
+        n_estimators:
+          type: int
+          low: 100
+          high: 350
+          step: 50
+        max_depth:
+          type: categorical
+          choices: [null, 6, 8, 10]
+        min_samples_split:
+          type: int
+          low: 2
+          high: 6
+        min_samples_leaf:
+          type: int
+          low: 2
+          high: 4
+        max_features:
+          type: categorical
+          choices: [0.6, 0.7, sqrt, log2]
+        bootstrap:
+          type: categorical
+          choices: [false, true]
+        max_samples:
+          type: float
+          low: 0.7
+          high: 1.0
+          step: 0.1
+          when:
+            bootstrap: true
+          default: null
+      study:
+        n_startup_trials: 10
+        n_warmup_steps: 1
+
+  # XGB remains a strong baseline, but the formal window is now centered on
+  # the narrow depth / regularization band that showed up in the scout.
+  - name: xgboost
+    alias: xgb
+    params:
+      n_estimators: 300
+      max_depth: 4
+      learning_rate: 0.08
+      min_child_weight: 4.0
+      subsample: 0.7
+      colsample_bytree: 0.9
+      reg_alpha: 0.001
+      reg_lambda: 0.5
+      gamma: 0.01
+      early_stopping_rounds: 30
+      tree_method: hist
+    tuning:
+      trials: 40
+    search_space:
+      model:
+        n_estimators:
+          type: int
+          low: 200
+          high: 400
+          step: 50
+        max_depth:
+          type: int
+          low: 3
+          high: 5
+        learning_rate:
+          type: float
+          low: 0.03
+          high: 0.16
+          log: true
+        min_child_weight:
+          type: float
+          low: 3.0
+          high: 7.0
+        subsample:
+          type: float
+          low: 0.6
+          high: 0.8
+          step: 0.1
+        colsample_bytree:
+          type: categorical
+          choices: [0.8, 0.9, 1.0]
+        gamma:
+          type: float
+          low: 0.00001
+          high: 0.1
+          log: true
+        reg_alpha:
+          type: float
+          low: 0.00000001
+          high: 0.05
+          log: true
+        reg_lambda:
+          type: float
+          low: 0.1
+          high: 5.0
+          log: true
+        early_stopping_rounds:
+          type: categorical
+          choices: [20, 30, 40]
+      study:
+        n_startup_trials: 12
+        n_warmup_steps: 1
+
+  # MLP was the best BDCM model in the 7-feature scout, so this formal search
+  # is centered tightly around that region.
+  - name: mlp
+    alias: mlp
+    params:
+      hidden_dims: [64, 64]
+      dropout: 0.1
+      activation: LeakyReLU
+    tuning:
+      trials: 60
+    search_space:
+      model:
+        hidden_dims:
+          type: categorical
+          choices: ["48-48", "64-64", "64-64-64", "32-32"]
+          value_map:
+            "48-48": [48, 48]
+            "64-64": [64, 64]
+            "64-64-64": [64, 64, 64]
+            "32-32": [32, 32]
+        dropout:
+          type: float
+          low: 0.05
+          high: 0.2
+          step: 0.05
+        activation:
+          type: categorical
+          choices: [LeakyReLU, Tanh, ReLU]
+      training:
+        lr:
+          type: float
+          low: 0.006
+          high: 0.02
+          log: true
+        weight_decay:
+          type: categorical
+          choices: [0.0001, 0.0003, 0.001, 0.003, 0.005, 0.01]
+        batch_size:
+          type: categorical
+          choices: [8, 16]
+        optimizer:
+          type: categorical
+          choices: [Adam, AdamW]
+        loss:
+          type: categorical
+          choices: [MSE, Huber]
+        huber_delta:
+          type: categorical
+          choices: [1.0, 2.0]
+      study:
+        n_startup_trials: 15
+        n_warmup_steps: 2
+
+  # KAN was a strong secondary candidate for BDCM, with grid=8 and k=3
+  # showing up clearly in the scout.
+  - name: kan
+    alias: kan
+    params:
+      hidden_dims: [32, 16]
+      grid: 8
+      k: 3
+      base_fun: silu
+    tuning:
+      trials: 35
+    search_space:
+      model:
+        hidden_dims:
+          type: categorical
+          choices: ["16-8", "24-12", "32", "32-16"]
+          value_map:
+            "16-8": [16, 8]
+            "24-12": [24, 12]
+            "32": [32]
+            "32-16": [32, 16]
+        grid: null
+        k: null
+      training:
+        lr:
+          type: float
+          low: 0.003
+          high: 0.01
+          log: true
+        weight_decay:
+          type: float
+          low: 0.000001
+          high: 0.005
+          log: true
+        batch_size:
+          type: categorical
+          choices: [8, 16, 32]
+        optimizer:
+          type: categorical
+          choices: [Adam, AdamW]
+      study:
+        n_startup_trials: 12
+        n_warmup_steps: 2
+
+training:
+  seed: 42
+  max_epochs: 1200
+  patience: 100
+  batch_size: 16
+  lr: 0.001
+  weight_decay: 0.0001
+  val_fraction: 0.15
+  optimizer: Adam
+  loss: MSE
+
+tuning:
+  enabled: true
+  scout: false
+  folds: 5
+  stability_penalty: 0.18
+
+outputs:
+  dir: ../checkpoints/formal_dataset1_7feat_cl2d_contact_time_bdcm_avg
+  save_models: true
+  save_predictions: true

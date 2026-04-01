@@ -1,0 +1,296 @@
+# Dataset1 formal experiment with Cl2 dose:
+# - 6 shared Taihu features mapped to *_avg columns
+# - Adds cl2d_in_avg to the prior 5-feature backbone
+# - Same 3 aligned DBP targets
+# - Same 4 model families for direct horizontal comparison
+# - Formal tuning narrows each search space around the Cl2 scout hot spots
+# - drop_missing enforces complete-case rows before fitting
+#
+# Scout reference:
+#   checkpoints/scout_dataset1_6feat_cl2d_avg/20260331T123111Z
+#
+# Key scout findings:
+#   - RF remained the strongest macro model and clearly improved THM4.
+#   - XGB and MLP both gained meaningfully with Cl2, especially on THM4/DBCM.
+#   - KAN improved on THM4 but still trailed on macro performance, so it stays
+#     in a compact regime for comparability instead of a wide exploratory search.
+#
+# Run:
+#   dbp run experiments/formal_dataset1_6feat_cl2d_avg.yaml
+
+dataset:
+  path: ../data/dataset1_dbp_formation_with_split.csv
+  format: csv
+  features:
+    - ph_in_avg
+    - uv_in_avg
+    - temp_in_avg
+    - toc_in_avg
+    - br_in_avg
+    - cl2d_in_avg
+  targets:
+    - thm4_in_avg
+    - dbcm_in_avg
+    - bdcm_in_avg
+  split:
+    strategy: predefined
+    column: split
+    train_label: train
+    test_label: test
+
+task:
+  strategy: per_target
+
+features:
+  steps:
+    - name: drop_missing
+
+models:
+  # Scout hot spots:
+  # - thm4: deeper trees, bootstrap=true, max_features=0.7
+  # - dbcm: depth=8 + log2 + bootstrap=false
+  # - bdcm: deeper trees or no cap, mostly bootstrap=false
+  - name: random_forest
+    alias: rf
+    params:
+      n_estimators: 350
+      max_depth: 16
+      min_samples_split: 3
+      min_samples_leaf: 1
+      max_features: 0.7
+      bootstrap: false
+    tuning:
+      trials: 60
+    search_space:
+      model:
+        n_estimators:
+          type: int
+          low: 250
+          high: 450
+          step: 50
+        max_depth:
+          type: categorical
+          choices: [8, 12, 16, null]
+        min_samples_split:
+          type: int
+          low: 2
+          high: 5
+        min_samples_leaf:
+          type: int
+          low: 1
+          high: 2
+        max_features:
+          type: categorical
+          choices: [0.7, sqrt, log2]
+        bootstrap:
+          type: categorical
+          choices: [false, true]
+        max_samples:
+          type: float
+          low: 0.9
+          high: 1.0
+          step: 0.1
+          when:
+            bootstrap: true
+          default: null
+      study:
+        n_startup_trials: 12
+        n_warmup_steps: 1
+
+  # Scout hot spots:
+  # - thm4: shallow trees, lr≈0.16-0.20, strong row/column sampling
+  # - dbcm: deeper trees, high min_child_weight, strong L2
+  # - bdcm: shallow trees, high lr, near-zero gamma and very low L2
+  - name: xgboost
+    alias: xgb
+    params:
+      n_estimators: 300
+      max_depth: 4
+      learning_rate: 0.16
+      min_child_weight: 7.0
+      subsample: 0.6
+      colsample_bytree: 0.9
+      reg_alpha: 0.001
+      reg_lambda: 1.0
+      gamma: 0.0001
+      early_stopping_rounds: 20
+      tree_method: hist
+    tuning:
+      trials: 60
+    search_space:
+      model:
+        n_estimators:
+          type: int
+          low: 150
+          high: 500
+          step: 50
+        max_depth:
+          type: int
+          low: 3
+          high: 7
+        learning_rate:
+          type: float
+          low: 0.08
+          high: 0.26
+          log: true
+        min_child_weight:
+          type: float
+          low: 1.0
+          high: 10.0
+        subsample:
+          type: float
+          low: 0.6
+          high: 1.0
+          step: 0.1
+        colsample_bytree:
+          type: categorical
+          choices: [0.8, 0.9, 1.0]
+        gamma:
+          type: float
+          low: 0.00000001
+          high: 0.01
+          log: true
+        reg_alpha:
+          type: float
+          low: 0.00000001
+          high: 0.1
+          log: true
+        reg_lambda:
+          type: float
+          low: 0.002
+          high: 20.0
+          log: true
+        early_stopping_rounds:
+          type: categorical
+          choices: [10, 20, 30, 50]
+      study:
+        n_startup_trials: 15
+        n_warmup_steps: 1
+
+  # Scout hot spots:
+  # - thm4: 48-48 + ReLU + lr≈0.004-0.008
+  # - dbcm: compact 24-24-24 / 48-wide nets, LeakyReLU, near-zero dropout
+  # - bdcm: larger LeakyReLU nets, batch_size=8, stronger regularization
+  - name: mlp
+    alias: mlp
+    params:
+      hidden_dims: [48, 48]
+      dropout: 0.1
+      activation: LeakyReLU
+    tuning:
+      trials: 70
+    search_space:
+      model:
+        hidden_dims:
+          type: categorical
+          choices: ["24-24-24", "48-48", "48-48-48", "64-64", "64-64-64"]
+          value_map:
+            "24-24-24": [24, 24, 24]
+            "48-48": [48, 48]
+            "48-48-48": [48, 48, 48]
+            "64-64": [64, 64]
+            "64-64-64": [64, 64, 64]
+        dropout:
+          type: float
+          low: 0.0
+          high: 0.2
+          step: 0.05
+        activation:
+          type: categorical
+          choices: [ReLU, LeakyReLU]
+      training:
+        lr:
+          type: float
+          low: 0.003
+          high: 0.02
+          log: true
+        weight_decay:
+          type: categorical
+          choices: [0.000001, 0.00001, 0.0001, 0.001, 0.003, 0.01]
+        batch_size:
+          type: categorical
+          choices: [8, 16, 32]
+        optimizer:
+          type: categorical
+          choices: [Adam, AdamW]
+        loss:
+          type: categorical
+          choices: [MSE, Huber]
+        huber_delta:
+          type: categorical
+          choices: [1.0, 2.0]
+      study:
+        n_startup_trials: 18
+        n_warmup_steps: 2
+
+  # Scout hot spots:
+  # - thm4: 24-12 with grid=5, k=5
+  # - dbcm: 32-16 with grid=8, k=3
+  # - bdcm: 32 with grid=8, k=3
+  # - AdamW dominated top trials across all three targets
+  - name: kan
+    alias: kan
+    params:
+      hidden_dims: [32, 16]
+      grid: 8
+      k: 3
+      base_fun: silu
+    tuning:
+      trials: 40
+    search_space:
+      model:
+        hidden_dims:
+          type: categorical
+          choices: ["24-12", "32", "32-16"]
+          value_map:
+            "24-12": [24, 12]
+            "32": [32]
+            "32-16": [32, 16]
+        grid:
+          type: categorical
+          choices: [5, 8]
+        k:
+          type: categorical
+          choices: [3, 5]
+      training:
+        lr:
+          type: float
+          low: 0.0012
+          high: 0.008
+          log: true
+        weight_decay:
+          type: float
+          low: 0.00003
+          high: 0.009
+          log: true
+        batch_size:
+          type: categorical
+          choices: [8, 16]
+        optimizer:
+          type: categorical
+          choices: [AdamW]
+      study:
+        n_startup_trials: 12
+        n_warmup_steps: 2
+
+training:
+  seed: 42
+  max_epochs: 1200
+  patience: 100
+  batch_size: 16
+  lr: 0.001
+  weight_decay: 0.0001
+  val_fraction: 0.15
+  optimizer: Adam
+  loss: MSE
+
+tuning:
+  enabled: true
+  scout: false
+  folds: 5
+  stability_penalty: 0.18
+
+outputs:
+  dir: ../checkpoints/formal_dataset1_6feat_cl2d_avg
+  save_models: true
+  save_predictions: true
