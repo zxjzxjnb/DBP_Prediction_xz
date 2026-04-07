@@ -1,0 +1,179 @@
+# SHAP Attribution Study — Condition A'
+#
+# Tai Lake with the 5 common features shared with Dataset1:
+#   pH, UV254, Temperature, TOC, Bromide
+#
+# Drops COD from the standard 6-feature Tai Lake ablation so that
+# A' and D share an identical feature set, isolating the data-source effect.
+#
+# Models: RF + XGBoost only (matching D/E for fair comparison).
+# Search spaces adapted from ablation_6feat_formal.yaml.
+#
+# Run:
+#   dbp run experiments/shap_attribution/tailake_5common_formal.yaml
+
+dataset:
+  path: ../../data/DBP_dataset_DWTP_B.csv
+  format: csv
+  features:
+    - pH
+    - UV254_A_cm
+    - temp_C
+    - TOC_mg_L
+    - Br_mg_L
+  targets:
+    - T_THMs_ug_L
+    - DBCM_ug_L
+    - BDCM_ug_L
+  split:
+    strategy: predefined
+    column: split
+    train_label: train
+    test_label: test
+
+task:
+  strategy: per_target
+
+features:
+  steps: []
+
+models:
+  # Adapted from ablation_6feat_formal RF search space.
+  # With COD removed the effective feature count drops from 6→5,
+  # so max_features choices stay the same (relative fractions).
+  - name: random_forest
+    alias: rf
+    params:
+      n_estimators: 350
+      max_depth: 6
+      min_samples_split: 5
+      min_samples_leaf: 2
+      max_features: 0.6
+      bootstrap: true
+      max_samples: 0.8
+    tuning:
+      trials: 50
+    search_space:
+      model:
+        n_estimators:
+          type: int
+          low: 250
+          high: 450
+          step: 50
+        max_depth:
+          type: categorical
+          choices: [null, 4, 6, 8]
+        min_samples_split:
+          type: int
+          low: 2
+          high: 10
+        min_samples_leaf:
+          type: int
+          low: 1
+          high: 4
+        max_features:
+          type: categorical
+          choices: [0.5, 0.6, 0.7, sqrt]
+        bootstrap:
+          type: categorical
+          choices: [true, false]
+        max_samples:
+          type: float
+          low: 0.7
+          high: 1.0
+          step: 0.1
+          when:
+            bootstrap: true
+          default: null
+      study:
+        n_startup_trials: 12
+        n_warmup_steps: 1
+
+  # Adapted from ablation_6feat_formal XGBoost search space.
+  - name: xgboost
+    alias: xgb
+    params:
+      n_estimators: 350
+      max_depth: 3
+      learning_rate: 0.08
+      min_child_weight: 8.5
+      subsample: 0.6
+      colsample_bytree: 0.9
+      reg_alpha: 0.001
+      reg_lambda: 1.0
+      gamma: 0.005
+      early_stopping_rounds: 40
+      tree_method: hist
+    tuning:
+      trials: 70
+    search_space:
+      model:
+        n_estimators:
+          type: int
+          low: 250
+          high: 500
+          step: 50
+        max_depth:
+          type: int
+          low: 2
+          high: 6
+        learning_rate:
+          type: float
+          low: 0.03
+          high: 0.2
+          log: true
+        min_child_weight:
+          type: float
+          low: 5.0
+          high: 10.0
+        subsample:
+          type: float
+          low: 0.6
+          high: 0.9
+          step: 0.1
+        colsample_bytree:
+          type: categorical
+          choices: [0.8, 0.9, 1.0]
+        gamma:
+          type: float
+          low: 0.00001
+          high: 0.3
+          log: true
+        reg_alpha:
+          type: float
+          low: 0.00000001
+          high: 0.3
+          log: true
+        reg_lambda:
+          type: float
+          low: 0.001
+          high: 10.0
+          log: true
+        early_stopping_rounds:
+          type: categorical
+          choices: [20, 30, 40]
+      study:
+        n_startup_trials: 15
+        n_warmup_steps: 1
+
+training:
+  seed: 42
+  max_epochs: 1200
+  patience: 100
+  batch_size: 16
+  lr: 0.001
+  weight_decay: 0.0001
+  val_fraction: 0.15
+  optimizer: Adam
+  loss: MSE
+
+tuning:
+  enabled: true
+  scout: false
+  folds: 5
+  stability_penalty: 0.18
+
+outputs:
+  dir: ../../checkpoints/shap_attribution/tailake_5common_formal
+  save_models: true
+  save_predictions: true
