@@ -98,10 +98,27 @@ TARGET_LABELS = {
     "thm4_in_avg": "THM4",
     "dbcm_in_avg": "DBCM",
     "bdcm_in_avg": "BDCM",
-    "T_THMs_ug_L": "T-THMs",
+    "T_THMs_ug_L": "THM4",
     "DBCM_ug_L": "DBCM",
     "BDCM_ug_L": "BDCM",
 }
+
+TARGET_KEYS = {
+    "thm4_in_avg": "thm4",
+    "dbcm_in_avg": "dbcm",
+    "bdcm_in_avg": "bdcm",
+    "T_THMs_ug_L": "thm4",
+    "DBCM_ug_L": "dbcm",
+    "BDCM_ug_L": "bdcm",
+}
+
+CANONICAL_TARGET_ORDER = ["thm4", "dbcm", "bdcm"]
+
+FEATURE_LABEL_NORMALIZATION = {
+    "Cl2 dose": "Cl₂ dose",
+}
+
+PLOT_PREFIXES = ("cross_condition_", "ranking_heatmap_")
 
 # Canonical feature order for cross-condition comparison
 CANONICAL_FEATURES = ["pH", "UV254", "Temperature", "TOC", "Bromide"]
@@ -114,24 +131,62 @@ N_TRAIN_TL = 141
 N_TEST_TL = 34
 
 
+def canonical_target_key(target_col: str) -> str:
+    """Map dataset-specific target names onto a shared comparison key."""
+    return TARGET_KEYS.get(target_col, target_col)
+
+
+def canonical_target_label(target_col: str) -> str:
+    """Map dataset-specific target names onto a shared display label."""
+    return TARGET_LABELS.get(target_col, target_col)
+
+
+def normalize_feature_label(label: str) -> str:
+    """Collapse typography variants so cross-condition tables stay aligned."""
+    return FEATURE_LABEL_NORMALIZATION.get(label, label)
+
+
+def expected_plot_filenames() -> set[str]:
+    """Return the canonical plot filenames owned by this script."""
+    expected: set[str] = set()
+    for prefix in PLOT_PREFIXES:
+        for model_name in MODEL_LABELS:
+            for target_key in CANONICAL_TARGET_ORDER:
+                expected.add(f"{prefix}{model_name}_{target_key}.png")
+    return expected
+
+
+def cleanup_legacy_plot_artifacts(output_dir: Path) -> list[str]:
+    """Remove stale plot PNGs left behind by older naming schemes."""
+    expected = expected_plot_filenames()
+    removed: list[str] = []
+    for prefix in PLOT_PREFIXES:
+        for path in sorted(output_dir.glob(f"{prefix}*.png")):
+            if path.name in expected:
+                continue
+            path.unlink(missing_ok=True)
+            removed.append(path.name)
+    return removed
+
+
 # ---------------------------------------------------------------------------
 # Best hyperparameters from B (5-feat) and C (6-feat) full-data runs
 # ---------------------------------------------------------------------------
 def _load_best_hyperparams(run_dir: Path) -> dict[str, dict[str, dict]]:
-    """Load per-target best model_params from trial_history.json.
+    """Load per-target best model_params from tuned checkpoints.
 
     Returns: {model: {target: {param: value}}}
     """
-    path = run_dir / "trial_history.json"
-    raw = json.loads(path.read_text())
     result: dict[str, dict[str, dict]] = {}
     for model_name in ("rf", "xgb"):
-        if model_name not in raw:
+        ckpt_path = run_dir / f"{model_name}_tuned_checkpoint.joblib"
+        if not ckpt_path.exists():
             continue
+
+        ckpt = joblib.load(ckpt_path)
         result[model_name] = {}
-        for target, trials in raw[model_name]["targets"].items():
-            # First entry is the best trial
-            result[model_name][target] = trials[0]["model_params"]
+        for target_col, payload in ckpt["target_payloads"].items():
+            result[model_name][target_col] = dict(payload["best_model_params"])
     return result
 
 
@@ -153,17 +208,16 @@ class ConditionSpec:
 # ---------------------------------------------------------------------------
 # Training helpers
 # ---------------------------------------------------------------------------
-def _build_estimator(model_name: str, params: dict) -> Any:
+def _build_estimator(model_name: str, params: dict, seed: int) -> Any:
     """Instantiate an RF or XGBoost model with the given hyperparameters."""
     clean = {k: v for k, v in params.items() if v is not None}
     if model_name == "rf":
-        return RandomForestRegressor(random_state=42, **clean)
+        return RandomForestRegressor(random_state=seed, **clean)
     # XGBoost
-    clean.pop("tree_method", None)
-    clean.pop("early_stopping_rounds", None)
+    tree_method = str(clean.pop("tree_method", "hist"))
     return XGBRegressor(
-        random_state=42,
-        tree_method="hist",
+        random_state=seed,
+        tree_method=tree_method,
         verbosity=0,
         **clean,
     )
@@ -180,18 +234,30 @@ def train_cv_ensemble(
     """Train a 5-fold CV ensemble and return list of member dicts."""
     kf = KFold(n_splits=n_folds, shuffle=True, random_state=seed)
     members = []
-    for fold_idx, (train_idx, val_idx) in enumerate(kf.split(X_train)):
+    for fold_idx, (train_idx, val_idx) in enumerate(kf.split(X_train), start=1):
         X_tr, X_val = X_train[train_idx], X_train[val_idx]
         y_tr, y_val = y_train[train_idx], y_train[val_idx]
 
         scaler_x = StandardScaler().fit(X_tr)
+        scaler_y = StandardScaler().fit(y_tr)
         X_tr_s = scaler_x.transform(X_tr)
+        X_val_s = scaler_x.transform(X_val)
+        y_tr_s = scaler_y.transform(y_tr)
+        y_val_s = scaler_y.transform(y_val)
 
-        estimator = _build_estimator(model_name, params)
-        estimator.fit(X_tr_s, y_tr.ravel())
+        fold_seed = seed + fold_idx
+        estimator = _build_estimator(model_name, params, seed=fold_seed)
+        fit_kwargs = {}
+        if model_name == "xgb":
+            fit_kwargs = {
+                "eval_set": [(X_val_s, y_val_s.ravel())],
+                "verbose": False,
+            }
+        estimator.fit(X_tr_s, y_tr_s.ravel(), **fit_kwargs)
 
         members.append({
             "scaler_x": scaler_x,
+            "scaler_y": scaler_y,
             "estimator": estimator,
         })
     return members
@@ -204,7 +270,7 @@ def compute_shap_ensemble(
     members: list[dict],
     X_test: np.ndarray,
 ) -> np.ndarray:
-    """Compute SHAP values averaged across CV ensemble members."""
+    """Compute SHAP values in raw target units, averaged across CV members."""
     all_sv = []
     for member in members:
         X_scaled = member["scaler_x"].transform(X_test)
@@ -212,6 +278,9 @@ def compute_shap_ensemble(
         sv = np.asarray(explainer.shap_values(X_scaled))
         if sv.ndim == 3 and sv.shape[2] == 1:
             sv = sv[:, :, 0]
+        scaler_y = member.get("scaler_y")
+        if scaler_y is not None:
+            sv = sv * float(scaler_y.scale_[0])
         all_sv.append(sv)
     return np.mean(np.stack(all_sv, axis=0), axis=0)
 
@@ -219,7 +288,7 @@ def compute_shap_ensemble(
 def shap_to_ranking(shap_values: np.ndarray, feature_cols: list[str]) -> pd.DataFrame:
     """Convert SHAP matrix → DataFrame with mean|SHAP| and rank."""
     mean_abs = np.abs(shap_values).mean(axis=0)
-    labels = [FEATURE_LABELS.get(c, c) for c in feature_cols]
+    labels = [normalize_feature_label(FEATURE_LABELS.get(c, c)) for c in feature_cols]
     df = pd.DataFrame({
         "feature": feature_cols,
         "feature_label": labels,
@@ -299,7 +368,8 @@ def run_one_seed(
                     "model": model_name,
                     "model_label": MODEL_LABELS[model_name],
                     "target": target_col,
-                    "target_label": TARGET_LABELS[target_col],
+                    "target_key": canonical_target_key(target_col),
+                    "target_label": canonical_target_label(target_col),
                     "feature": row["feature"],
                     "feature_label": row["feature_label"],
                     "mean_abs_shap": float(row["mean_abs_shap"]),
@@ -312,64 +382,38 @@ def run_one_seed(
 
 
 # ---------------------------------------------------------------------------
-# Load existing results from B/C checkpoints (conditions B and C)
+# Load fixed-condition results from tuned checkpoints (A', B, C)
 # ---------------------------------------------------------------------------
-def load_existing_shap_results(run_dir: Path, condition_key: str,
-                               condition_label: str,
-                               feature_cols: list[str],
-                               targets: list[str]) -> list[dict[str, Any]]:
-    """Load SHAP summary from an existing full-data experiment.
-
-    Reads the pre-computed SHAP results from the shap_analysis_dataset1_ablation
-    output, or recomputes from checkpoints if needed.
-    """
-    # Try the pre-computed summary CSV first
-    summary_csv = PROJECT / "results" / "shap_analysis_dataset1_ablation" / "mean_abs_shap_summary.csv"
-    if summary_csv.exists():
-        df = pd.read_csv(summary_csv)
-        # Map experiment keys to our condition keys
-        exp_key_map = {
-            "B": "formal_5feat",
-            "C": "formal_6feat_cl2d",
-        }
-        exp_key = exp_key_map.get(condition_key)
-        if exp_key and exp_key in df["experiment"].values:
-            subset = df[
-                (df["experiment"] == exp_key)
-                & (df["model"].isin(["rf", "xgb"]))
-            ].copy()
-            rows = []
-            for _, r in subset.iterrows():
-                rows.append({
-                    "condition": condition_key,
-                    "condition_label": condition_label,
-                    "seed": -1,  # not applicable
-                    "model": r["model"],
-                    "model_label": r["model_label"],
-                    "target": r["target"],
-                    "target_label": r["target_label"],
-                    "feature": r["feature"],
-                    "feature_label": r["feature_label"],
-                    "mean_abs_shap": float(r["mean_abs_shap"]),
-                    "rank": int(r["rank"]),
-                    "n_train": 382,
-                    "n_test": 106,
-                })
-            return rows
-    return []
+def _load_run_dataset(run_dir: Path) -> pd.DataFrame:
+    """Load the dataset snapshot associated with a tuned run."""
+    snapshot_path = run_dir / "dataset_snapshot.json"
+    snapshot = json.loads(snapshot_path.read_text())
+    dataset_path = Path(snapshot["path"])
+    if not dataset_path.is_absolute():
+        dataset_path = (run_dir / dataset_path).resolve()
+    return pd.read_csv(dataset_path)
 
 
-# ---------------------------------------------------------------------------
-# Load A' results (Tai Lake 5-common)
-# ---------------------------------------------------------------------------
-def load_aprime_results(run_dir: Path | None) -> list[dict[str, Any]]:
-    """Load SHAP results from the A' experiment checkpoint.
+def _split_subset(
+    df: pd.DataFrame,
+    split_label: str,
+    feature_cols: list[str],
+    target_col: str,
+) -> pd.DataFrame:
+    """Select rows for one split and drop incomplete feature/target rows."""
+    return df.loc[df["split"] == split_label, feature_cols + [target_col]].dropna()
 
-    If run_dir is None or doesn't exist, return empty list (A' not yet run).
-    """
+
+def load_tree_checkpoint_results(
+    run_dir: Path | None,
+    condition_key: str,
+    condition_label: str,
+) -> list[dict[str, Any]]:
+    """Load SHAP results from a completed tree-model checkpoint directory."""
     if run_dir is None or not run_dir.exists():
         return []
 
+    df = _load_run_dataset(run_dir)
     rows: list[dict[str, Any]] = []
     for model_name in ("rf", "xgb"):
         ckpt_path = run_dir / f"{model_name}_tuned_checkpoint.joblib"
@@ -378,41 +422,40 @@ def load_aprime_results(run_dir: Path | None) -> list[dict[str, Any]]:
 
         ckpt = joblib.load(ckpt_path)
         feature_cols = ckpt["feature_cols"]
-        df = pd.read_csv(DATA_TL)
 
         for target_col in ckpt["target_cols"]:
-            # Get test data
-            test_df = df.loc[df["split"] == "test", feature_cols + [target_col]].dropna()
+            train_df = _split_subset(df, "train", feature_cols, target_col)
+            test_df = _split_subset(df, "test", feature_cols, target_col)
             X_test = test_df[feature_cols].to_numpy(dtype=np.float64)
 
             # Compute SHAP from ensemble members
             members_raw = ckpt["target_payloads"][target_col]["members"]
-            # Adapt to our expected format
             members = []
             for m in members_raw:
                 members.append({
                     "scaler_x": m["scaler_x"],
+                    "scaler_y": m.get("scaler_y"),
                     "estimator": m["model_state"]["estimator"],
                 })
             sv = compute_shap_ensemble(members, X_test)
             ranking = shap_to_ranking(sv, feature_cols)
 
-            target_label_map = dict(zip(TARGETS_TL, ["THM4", "DBCM", "BDCM"]))
             for _, r in ranking.iterrows():
                 rows.append({
-                    "condition": "A'",
-                    "condition_label": "A' Tai Lake 5-common",
+                    "condition": condition_key,
+                    "condition_label": condition_label,
                     "seed": -1,
                     "model": model_name,
                     "model_label": MODEL_LABELS[model_name],
                     "target": target_col,
-                    "target_label": target_label_map.get(target_col, target_col),
+                    "target_key": canonical_target_key(target_col),
+                    "target_label": canonical_target_label(target_col),
                     "feature": r["feature"],
-                    "feature_label": r["feature_label"],
+                    "feature_label": normalize_feature_label(r["feature_label"]),
                     "mean_abs_shap": float(r["mean_abs_shap"]),
                     "rank": int(r["rank"]),
-                    "n_train": N_TRAIN_TL,
-                    "n_test": N_TEST_TL,
+                    "n_train": int(len(train_df)),
+                    "n_test": int(len(test_df)),
                 })
     return rows
 
@@ -429,7 +472,7 @@ def aggregate_subsample_results(all_rows: list[dict]) -> pd.DataFrame:
 
     agg = (
         subsample.groupby(["condition", "condition_label", "model", "model_label",
-                           "target", "target_label", "feature", "feature_label"])
+                           "target_key", "target_label", "feature", "feature_label"])
         .agg(
             shap_mean=("mean_abs_shap", "mean"),
             shap_std=("mean_abs_shap", "std"),
@@ -461,7 +504,7 @@ def plot_cross_condition_bars(
     if not sub.empty:
         sub_agg = (
             sub.groupby(["condition", "condition_label", "model", "model_label",
-                         "target", "target_label", "feature", "feature_label"])
+                         "target_key", "target_label", "feature", "feature_label"])
             .agg(mean_abs_shap=("mean_abs_shap", "mean"),
                  shap_std=("mean_abs_shap", "std"))
             .reset_index()
@@ -483,7 +526,6 @@ def plot_cross_condition_bars(
     )
 
     condition_order = ["A'", "B", "D", "C", "E"]
-    conditions_present = [c for c in condition_order if c in plot_df["condition"].values]
 
     colors = {
         "A'": "#E15759",  # red
@@ -494,12 +536,14 @@ def plot_cross_condition_bars(
     }
 
     for model_name in plot_df["model"].unique():
-        for target in plot_df["target"].unique():
+        for target_key in CANONICAL_TARGET_ORDER:
             subset = plot_df[
-                (plot_df["model"] == model_name) & (plot_df["target"] == target)
+                (plot_df["model"] == model_name) & (plot_df["target_key"] == target_key)
             ]
             if subset.empty:
                 continue
+
+            conditions_present = [c for c in condition_order if c in subset["condition"].values]
 
             # Get all feature labels in this subset
             all_feats = sorted(
@@ -547,7 +591,7 @@ def plot_cross_condition_bars(
             ax.set_xticks(x + width * (n_cond - 1) / 2)
             ax.set_xticklabels(all_feats, rotation=20, ha="right")
             ax.set_ylabel("Mean |SHAP value|")
-            target_lbl = TARGET_LABELS.get(target, target)
+            target_lbl = subset["target_label"].iloc[0]
             model_lbl = MODEL_LABELS.get(model_name, model_name)
             ax.set_title(
                 f"Cross-condition SHAP — {model_lbl} × {target_lbl}",
@@ -555,7 +599,7 @@ def plot_cross_condition_bars(
             )
             ax.legend(fontsize=9)
             plt.tight_layout()
-            plt.savefig(output_dir / f"cross_condition_{model_name}_{target}.png", dpi=150)
+            plt.savefig(output_dir / f"cross_condition_{model_name}_{target_key}.png", dpi=150)
             plt.close("all")
 
 
@@ -573,20 +617,20 @@ def plot_ranking_heatmap(
     sub = df[df["seed"] >= 0].copy()
     if not sub.empty:
         sub_agg = (
-            sub.groupby(["condition", "model", "target", "feature_label"])
+            sub.groupby(["condition", "model", "target_key", "target_label", "feature_label"])
             ["rank"].mean().reset_index()
         )
     else:
         sub_agg = pd.DataFrame()
-    plot_df = pd.concat([fixed[["condition", "model", "target", "feature_label", "rank"]],
+    plot_df = pd.concat([fixed[["condition", "model", "target_key", "target_label", "feature_label", "rank"]],
                          sub_agg], ignore_index=True) if not sub_agg.empty else fixed.copy()
 
     condition_order = ["A'", "B", "D", "C", "E"]
 
     for model_name in plot_df["model"].unique():
-        for target in plot_df["target"].unique():
+        for target_key in CANONICAL_TARGET_ORDER:
             subset = plot_df[
-                (plot_df["model"] == model_name) & (plot_df["target"] == target)
+                (plot_df["model"] == model_name) & (plot_df["target_key"] == target_key)
             ]
             if subset.empty:
                 continue
@@ -621,7 +665,7 @@ def plot_ranking_heatmap(
                                 fontsize=11, fontweight="bold",
                                 color="white" if val <= 2 else "black")
 
-            target_lbl = TARGET_LABELS.get(target, target)
+            target_lbl = subset["target_label"].iloc[0]
             model_lbl = MODEL_LABELS.get(model_name, model_name)
             ax.set_title(
                 f"Feature Ranking — {model_lbl} × {target_lbl}",
@@ -629,7 +673,7 @@ def plot_ranking_heatmap(
             )
             plt.colorbar(im, ax=ax, label="Rank (1=most important)", shrink=0.8)
             plt.tight_layout()
-            plt.savefig(output_dir / f"ranking_heatmap_{model_name}_{target}.png", dpi=150)
+            plt.savefig(output_dir / f"ranking_heatmap_{model_name}_{target_key}.png", dpi=150)
             plt.close("all")
 
 
@@ -652,20 +696,18 @@ def write_master_table(
         lines.append(f"## {model_lbl}")
         lines.append("")
 
-        # Get all targets present for this model
-        targets_present = sorted(
-            set(r["target"] for r in all_rows if r["model"] == model_name)
-        )
-
-        for target in targets_present:
-            target_lbl = TARGET_LABELS.get(target, target)
+        for target_key in CANONICAL_TARGET_ORDER:
+            subset_rows = [r for r in all_rows if r["model"] == model_name and r["target_key"] == target_key]
+            if not subset_rows:
+                continue
+            target_lbl = subset_rows[0]["target_label"]
             lines.append(f"### {target_lbl}")
             lines.append("")
 
             # Header
             conds_in_data = [c for c in condition_order
                              if any(r["condition"] == c and r["model"] == model_name
-                                    and r["target"] == target for r in all_rows)]
+                                    and r["target_key"] == target_key for r in all_rows)]
             header = "| Feature |"
             sep = "|---------|"
             for cond in conds_in_data:
@@ -680,7 +722,7 @@ def write_master_table(
             # Fixed conditions
             if not df_fixed.empty:
                 for _, r in df_fixed[
-                    (df_fixed["model"] == model_name) & (df_fixed["target"] == target)
+                    (df_fixed["model"] == model_name) & (df_fixed["target_key"] == target_key)
                 ].iterrows():
                     key = (r["condition"], r["feature_label"])
                     lookup[key] = f"#{int(r['rank'])} {r['mean_abs_shap']:.4f}"
@@ -688,14 +730,14 @@ def write_master_table(
             # Subsample conditions (from agg)
             if not agg_df.empty:
                 for _, r in agg_df[
-                    (agg_df["model"] == model_name) & (agg_df["target"] == target)
+                    (agg_df["model"] == model_name) & (agg_df["target_key"] == target_key)
                 ].iterrows():
                     key = (r["condition"], r["feature_label"])
                     lookup[key] = f"#{r['rank_mean']:.1f} {r['shap_mean']:.4f}±{r['shap_std']:.4f}"
 
             all_feats = sorted(
                 set(r["feature_label"] for r in all_rows
-                    if r["model"] == model_name and r["target"] == target),
+                    if r["model"] == model_name and r["target_key"] == target_key),
                 key=lambda f: CANONICAL_FEATURES.index(f) if f in CANONICAL_FEATURES else 99,
             )
 
@@ -749,7 +791,11 @@ def main() -> None:
     aprime_dir = Path(args.aprime_run_dir) if args.aprime_run_dir else auto_detect_aprime_dir()
     if aprime_dir and aprime_dir.exists():
         print(f"Loading A' results from {aprime_dir}")
-        aprime_rows = load_aprime_results(aprime_dir)
+        aprime_rows = load_tree_checkpoint_results(
+            aprime_dir,
+            condition_key="A'",
+            condition_label="A' Tai Lake 5-common",
+        )
         all_rows.extend(aprime_rows)
         print(f"  → {len(aprime_rows)} rows")
     else:
@@ -759,17 +805,19 @@ def main() -> None:
     # B & C: existing full-data results
     # ------------------------------------------------------------------
     print("\nLoading B (Dataset1 5-feat full) results...")
-    b_rows = load_existing_shap_results(
-        B_RUN_DIR, "B", "B Dataset1 5-common (N=488)",
-        FEATURES_5COMMON_D1, TARGETS_D1,
+    b_rows = load_tree_checkpoint_results(
+        B_RUN_DIR,
+        condition_key="B",
+        condition_label="B Dataset1 5-common (N=488)",
     )
     all_rows.extend(b_rows)
     print(f"  → {len(b_rows)} rows")
 
     print("Loading C (Dataset1 6-feat full) results...")
-    c_rows = load_existing_shap_results(
-        C_RUN_DIR, "C", "C Dataset1 6-feat (N=488)",
-        FEATURES_6FEAT_D1, TARGETS_D1,
+    c_rows = load_tree_checkpoint_results(
+        C_RUN_DIR,
+        condition_key="C",
+        condition_label="C Dataset1 6-feat (N=488)",
     )
     all_rows.extend(c_rows)
     print(f"  → {len(c_rows)} rows")
@@ -839,6 +887,9 @@ def main() -> None:
     write_master_table(all_rows, agg_df, OUTPUT_DIR)
 
     # Plots
+    removed = cleanup_legacy_plot_artifacts(OUTPUT_DIR)
+    if removed:
+        print(f"Removed {len(removed)} stale plot files.")
     print("Generating plots...")
     plot_cross_condition_bars(all_rows, OUTPUT_DIR)
     plot_ranking_heatmap(all_rows, OUTPUT_DIR)
