@@ -34,6 +34,12 @@ results/
 .vscode/
 .idea/
 
+# Node / JS tooling (not part of this Python project)
+node_modules/
+
+# Claude Code local state and worktrees
+.claude/
+
 # Environment
 .env
 
