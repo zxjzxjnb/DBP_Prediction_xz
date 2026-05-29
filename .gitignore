@@ -19,10 +19,9 @@ build/
 .venv/
 venv/
 
-# Model checkpoints
+# Model checkpoints (delivered separately, too large for Git)
 *.pt
 checkpoints/
-results/
 
 # macOS
 .DS_Store

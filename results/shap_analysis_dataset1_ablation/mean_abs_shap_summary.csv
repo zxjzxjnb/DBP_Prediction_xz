@@ -1,0 +1,133 @@
+experiment,experiment_label,model,model_label,target,target_label,feature,feature_label,mean_abs_shap,rank,test_rows
+formal_5feat,Formal 5-feature,kan,KAN,bdcm_in_avg,BDCM,br_in_avg,Bromide,0.3794802280269907,1,106
+formal_5feat,Formal 5-feature,kan,KAN,bdcm_in_avg,BDCM,toc_in_avg,TOC,0.29874895740172736,2,106
+formal_5feat,Formal 5-feature,kan,KAN,bdcm_in_avg,BDCM,ph_in_avg,pH,0.09349222060913444,3,106
+formal_5feat,Formal 5-feature,kan,KAN,bdcm_in_avg,BDCM,uv_in_avg,UV254,0.08435666077490798,4,106
+formal_5feat,Formal 5-feature,kan,KAN,bdcm_in_avg,BDCM,temp_in_avg,Temperature,0.0680229477823572,5,106
+formal_5feat,Formal 5-feature,kan,KAN,dbcm_in_avg,DBCM,br_in_avg,Bromide,0.33014713018339176,1,106
+formal_5feat,Formal 5-feature,kan,KAN,dbcm_in_avg,DBCM,uv_in_avg,UV254,0.12256362174248026,2,106
+formal_5feat,Formal 5-feature,kan,KAN,dbcm_in_avg,DBCM,temp_in_avg,Temperature,0.12086979729549498,3,106
+formal_5feat,Formal 5-feature,kan,KAN,dbcm_in_avg,DBCM,ph_in_avg,pH,0.05263997497593301,4,106
+formal_5feat,Formal 5-feature,kan,KAN,dbcm_in_avg,DBCM,toc_in_avg,TOC,0.03583969896747229,5,106
+formal_5feat,Formal 5-feature,kan,KAN,thm4_in_avg,THM4,toc_in_avg,TOC,0.4330000094079869,1,106
+formal_5feat,Formal 5-feature,kan,KAN,thm4_in_avg,THM4,uv_in_avg,UV254,0.21973915740487843,2,106
+formal_5feat,Formal 5-feature,kan,KAN,thm4_in_avg,THM4,ph_in_avg,pH,0.07862949848857062,3,106
+formal_5feat,Formal 5-feature,kan,KAN,thm4_in_avg,THM4,br_in_avg,Bromide,0.0760648547056397,4,106
+formal_5feat,Formal 5-feature,kan,KAN,thm4_in_avg,THM4,temp_in_avg,Temperature,0.07072399973651498,5,106
+formal_5feat,Formal 5-feature,mlp,MLP,bdcm_in_avg,BDCM,toc_in_avg,TOC,0.4960410701976624,1,106
+formal_5feat,Formal 5-feature,mlp,MLP,bdcm_in_avg,BDCM,br_in_avg,Bromide,0.32710516599396827,2,106
+formal_5feat,Formal 5-feature,mlp,MLP,bdcm_in_avg,BDCM,uv_in_avg,UV254,0.13519594216353117,3,106
+formal_5feat,Formal 5-feature,mlp,MLP,bdcm_in_avg,BDCM,temp_in_avg,Temperature,0.07833384648116441,4,106
+formal_5feat,Formal 5-feature,mlp,MLP,bdcm_in_avg,BDCM,ph_in_avg,pH,0.06795344654865312,5,106
+formal_5feat,Formal 5-feature,mlp,MLP,dbcm_in_avg,DBCM,br_in_avg,Bromide,0.3036789254084648,1,106
+formal_5feat,Formal 5-feature,mlp,MLP,dbcm_in_avg,DBCM,uv_in_avg,UV254,0.1278284740484603,2,106
+formal_5feat,Formal 5-feature,mlp,MLP,dbcm_in_avg,DBCM,temp_in_avg,Temperature,0.08819247225712233,3,106
+formal_5feat,Formal 5-feature,mlp,MLP,dbcm_in_avg,DBCM,toc_in_avg,TOC,0.04467967362433538,4,106
+formal_5feat,Formal 5-feature,mlp,MLP,dbcm_in_avg,DBCM,ph_in_avg,pH,0.034392364393177666,5,106
+formal_5feat,Formal 5-feature,mlp,MLP,thm4_in_avg,THM4,toc_in_avg,TOC,0.6467964005321865,1,106
+formal_5feat,Formal 5-feature,mlp,MLP,thm4_in_avg,THM4,br_in_avg,Bromide,0.1385196484299295,2,106
+formal_5feat,Formal 5-feature,mlp,MLP,thm4_in_avg,THM4,ph_in_avg,pH,0.12231258963051933,3,106
+formal_5feat,Formal 5-feature,mlp,MLP,thm4_in_avg,THM4,uv_in_avg,UV254,0.09979730591786994,4,106
+formal_5feat,Formal 5-feature,mlp,MLP,thm4_in_avg,THM4,temp_in_avg,Temperature,0.050736941122318975,5,106
+formal_5feat,Formal 5-feature,rf,Random Forest,bdcm_in_avg,BDCM,br_in_avg,Bromide,0.4568008089262386,1,106
+formal_5feat,Formal 5-feature,rf,Random Forest,bdcm_in_avg,BDCM,uv_in_avg,UV254,0.20236669549330766,2,106
+formal_5feat,Formal 5-feature,rf,Random Forest,bdcm_in_avg,BDCM,toc_in_avg,TOC,0.16168954384685724,3,106
+formal_5feat,Formal 5-feature,rf,Random Forest,bdcm_in_avg,BDCM,temp_in_avg,Temperature,0.052155713029685316,4,106
+formal_5feat,Formal 5-feature,rf,Random Forest,bdcm_in_avg,BDCM,ph_in_avg,pH,0.03722857362304982,5,106
+formal_5feat,Formal 5-feature,rf,Random Forest,dbcm_in_avg,DBCM,br_in_avg,Bromide,0.35002394064761005,1,106
+formal_5feat,Formal 5-feature,rf,Random Forest,dbcm_in_avg,DBCM,ph_in_avg,pH,0.11012693423851849,2,106
+formal_5feat,Formal 5-feature,rf,Random Forest,dbcm_in_avg,DBCM,uv_in_avg,UV254,0.08528578318449181,3,106
+formal_5feat,Formal 5-feature,rf,Random Forest,dbcm_in_avg,DBCM,temp_in_avg,Temperature,0.06400083113475838,4,106
+formal_5feat,Formal 5-feature,rf,Random Forest,dbcm_in_avg,DBCM,toc_in_avg,TOC,0.05306413659817814,5,106
+formal_5feat,Formal 5-feature,rf,Random Forest,thm4_in_avg,THM4,toc_in_avg,TOC,0.3385611438909177,1,106
+formal_5feat,Formal 5-feature,rf,Random Forest,thm4_in_avg,THM4,br_in_avg,Bromide,0.14717180197152327,2,106
+formal_5feat,Formal 5-feature,rf,Random Forest,thm4_in_avg,THM4,uv_in_avg,UV254,0.14428482921151975,3,106
+formal_5feat,Formal 5-feature,rf,Random Forest,thm4_in_avg,THM4,temp_in_avg,Temperature,0.04777633547672916,4,106
+formal_5feat,Formal 5-feature,rf,Random Forest,thm4_in_avg,THM4,ph_in_avg,pH,0.021504772823055077,5,106
+formal_5feat,Formal 5-feature,xgb,XGBoost,bdcm_in_avg,BDCM,br_in_avg,Bromide,0.4517652988433838,1,106
+formal_5feat,Formal 5-feature,xgb,XGBoost,bdcm_in_avg,BDCM,uv_in_avg,UV254,0.18747182190418243,2,106
+formal_5feat,Formal 5-feature,xgb,XGBoost,bdcm_in_avg,BDCM,toc_in_avg,TOC,0.13444547355175018,3,106
+formal_5feat,Formal 5-feature,xgb,XGBoost,bdcm_in_avg,BDCM,temp_in_avg,Temperature,0.07058995217084885,4,106
+formal_5feat,Formal 5-feature,xgb,XGBoost,bdcm_in_avg,BDCM,ph_in_avg,pH,0.057577650994062424,5,106
+formal_5feat,Formal 5-feature,xgb,XGBoost,dbcm_in_avg,DBCM,br_in_avg,Bromide,0.3675062656402588,1,106
+formal_5feat,Formal 5-feature,xgb,XGBoost,dbcm_in_avg,DBCM,temp_in_avg,Temperature,0.10867217928171158,2,106
+formal_5feat,Formal 5-feature,xgb,XGBoost,dbcm_in_avg,DBCM,uv_in_avg,UV254,0.10649346560239792,3,106
+formal_5feat,Formal 5-feature,xgb,XGBoost,dbcm_in_avg,DBCM,ph_in_avg,pH,0.076349176466465,4,106
+formal_5feat,Formal 5-feature,xgb,XGBoost,dbcm_in_avg,DBCM,toc_in_avg,TOC,0.05799870193004608,5,106
+formal_5feat,Formal 5-feature,xgb,XGBoost,thm4_in_avg,THM4,toc_in_avg,TOC,0.32599103450775146,1,106
+formal_5feat,Formal 5-feature,xgb,XGBoost,thm4_in_avg,THM4,br_in_avg,Bromide,0.15446913242340088,2,106
+formal_5feat,Formal 5-feature,xgb,XGBoost,thm4_in_avg,THM4,uv_in_avg,UV254,0.15030881762504578,3,106
+formal_5feat,Formal 5-feature,xgb,XGBoost,thm4_in_avg,THM4,ph_in_avg,pH,0.058966007083654404,4,106
+formal_5feat,Formal 5-feature,xgb,XGBoost,thm4_in_avg,THM4,temp_in_avg,Temperature,0.05224723368883133,5,106
+formal_6feat_cl2d,Formal 6-feature + Cl2,kan,KAN,bdcm_in_avg,BDCM,br_in_avg,Bromide,0.382443788292286,1,106
+formal_6feat_cl2d,Formal 6-feature + Cl2,kan,KAN,bdcm_in_avg,BDCM,cl2d_in_avg,Cl2 dose,0.22017666172745223,2,106
+formal_6feat_cl2d,Formal 6-feature + Cl2,kan,KAN,bdcm_in_avg,BDCM,toc_in_avg,TOC,0.1659632389316017,3,106
+formal_6feat_cl2d,Formal 6-feature + Cl2,kan,KAN,bdcm_in_avg,BDCM,temp_in_avg,Temperature,0.06268020201682205,4,106
+formal_6feat_cl2d,Formal 6-feature + Cl2,kan,KAN,bdcm_in_avg,BDCM,ph_in_avg,pH,0.056822350685561816,5,106
+formal_6feat_cl2d,Formal 6-feature + Cl2,kan,KAN,bdcm_in_avg,BDCM,uv_in_avg,UV254,0.05029664541600874,6,106
+formal_6feat_cl2d,Formal 6-feature + Cl2,kan,KAN,dbcm_in_avg,DBCM,br_in_avg,Bromide,0.3055406427541799,1,106
+formal_6feat_cl2d,Formal 6-feature + Cl2,kan,KAN,dbcm_in_avg,DBCM,uv_in_avg,UV254,0.10690689168619492,2,106
+formal_6feat_cl2d,Formal 6-feature + Cl2,kan,KAN,dbcm_in_avg,DBCM,temp_in_avg,Temperature,0.10100603946939635,3,106
+formal_6feat_cl2d,Formal 6-feature + Cl2,kan,KAN,dbcm_in_avg,DBCM,ph_in_avg,pH,0.06023930339319338,4,106
+formal_6feat_cl2d,Formal 6-feature + Cl2,kan,KAN,dbcm_in_avg,DBCM,cl2d_in_avg,Cl2 dose,0.04888860227943022,5,106
+formal_6feat_cl2d,Formal 6-feature + Cl2,kan,KAN,dbcm_in_avg,DBCM,toc_in_avg,TOC,0.03471234386107322,6,106
+formal_6feat_cl2d,Formal 6-feature + Cl2,kan,KAN,thm4_in_avg,THM4,cl2d_in_avg,Cl2 dose,0.2467008374916408,1,106
+formal_6feat_cl2d,Formal 6-feature + Cl2,kan,KAN,thm4_in_avg,THM4,toc_in_avg,TOC,0.2070728585768353,2,106
+formal_6feat_cl2d,Formal 6-feature + Cl2,kan,KAN,thm4_in_avg,THM4,uv_in_avg,UV254,0.1726417339235598,3,106
+formal_6feat_cl2d,Formal 6-feature + Cl2,kan,KAN,thm4_in_avg,THM4,temp_in_avg,Temperature,0.07488366369354729,4,106
+formal_6feat_cl2d,Formal 6-feature + Cl2,kan,KAN,thm4_in_avg,THM4,br_in_avg,Bromide,0.05822029191945639,5,106
+formal_6feat_cl2d,Formal 6-feature + Cl2,kan,KAN,thm4_in_avg,THM4,ph_in_avg,pH,0.05306180663190659,6,106
+formal_6feat_cl2d,Formal 6-feature + Cl2,mlp,MLP,bdcm_in_avg,BDCM,br_in_avg,Bromide,0.35296626525360925,1,106
+formal_6feat_cl2d,Formal 6-feature + Cl2,mlp,MLP,bdcm_in_avg,BDCM,cl2d_in_avg,Cl2 dose,0.2976712166159927,2,106
+formal_6feat_cl2d,Formal 6-feature + Cl2,mlp,MLP,bdcm_in_avg,BDCM,toc_in_avg,TOC,0.2916131634522339,3,106
+formal_6feat_cl2d,Formal 6-feature + Cl2,mlp,MLP,bdcm_in_avg,BDCM,uv_in_avg,UV254,0.12493590968793272,4,106
+formal_6feat_cl2d,Formal 6-feature + Cl2,mlp,MLP,bdcm_in_avg,BDCM,ph_in_avg,pH,0.05375646071642114,5,106
+formal_6feat_cl2d,Formal 6-feature + Cl2,mlp,MLP,bdcm_in_avg,BDCM,temp_in_avg,Temperature,0.0463882719548348,6,106
+formal_6feat_cl2d,Formal 6-feature + Cl2,mlp,MLP,dbcm_in_avg,DBCM,br_in_avg,Bromide,0.30688401751682065,1,106
+formal_6feat_cl2d,Formal 6-feature + Cl2,mlp,MLP,dbcm_in_avg,DBCM,uv_in_avg,UV254,0.10506050023644668,2,106
+formal_6feat_cl2d,Formal 6-feature + Cl2,mlp,MLP,dbcm_in_avg,DBCM,temp_in_avg,Temperature,0.08023935603120244,3,106
+formal_6feat_cl2d,Formal 6-feature + Cl2,mlp,MLP,dbcm_in_avg,DBCM,cl2d_in_avg,Cl2 dose,0.07014956691815623,4,106
+formal_6feat_cl2d,Formal 6-feature + Cl2,mlp,MLP,dbcm_in_avg,DBCM,toc_in_avg,TOC,0.06151537763338438,5,106
+formal_6feat_cl2d,Formal 6-feature + Cl2,mlp,MLP,dbcm_in_avg,DBCM,ph_in_avg,pH,0.03181659501654281,6,106
+formal_6feat_cl2d,Formal 6-feature + Cl2,mlp,MLP,thm4_in_avg,THM4,cl2d_in_avg,Cl2 dose,0.35811879376198846,1,106
+formal_6feat_cl2d,Formal 6-feature + Cl2,mlp,MLP,thm4_in_avg,THM4,toc_in_avg,TOC,0.18700023237564897,2,106
+formal_6feat_cl2d,Formal 6-feature + Cl2,mlp,MLP,thm4_in_avg,THM4,br_in_avg,Bromide,0.09530409264619903,3,106
+formal_6feat_cl2d,Formal 6-feature + Cl2,mlp,MLP,thm4_in_avg,THM4,uv_in_avg,UV254,0.07028587347503168,4,106
+formal_6feat_cl2d,Formal 6-feature + Cl2,mlp,MLP,thm4_in_avg,THM4,temp_in_avg,Temperature,0.06400657516523352,5,106
+formal_6feat_cl2d,Formal 6-feature + Cl2,mlp,MLP,thm4_in_avg,THM4,ph_in_avg,pH,0.03611461328145107,6,106
+formal_6feat_cl2d,Formal 6-feature + Cl2,rf,Random Forest,bdcm_in_avg,BDCM,br_in_avg,Bromide,0.45999133421778904,1,106
+formal_6feat_cl2d,Formal 6-feature + Cl2,rf,Random Forest,bdcm_in_avg,BDCM,cl2d_in_avg,Cl2 dose,0.259181733477788,2,106
+formal_6feat_cl2d,Formal 6-feature + Cl2,rf,Random Forest,bdcm_in_avg,BDCM,toc_in_avg,TOC,0.09769897440782217,3,106
+formal_6feat_cl2d,Formal 6-feature + Cl2,rf,Random Forest,bdcm_in_avg,BDCM,uv_in_avg,UV254,0.09514030335894245,4,106
+formal_6feat_cl2d,Formal 6-feature + Cl2,rf,Random Forest,bdcm_in_avg,BDCM,temp_in_avg,Temperature,0.029828846539336804,5,106
+formal_6feat_cl2d,Formal 6-feature + Cl2,rf,Random Forest,bdcm_in_avg,BDCM,ph_in_avg,pH,0.02753617957283703,6,106
+formal_6feat_cl2d,Formal 6-feature + Cl2,rf,Random Forest,dbcm_in_avg,DBCM,br_in_avg,Bromide,0.31128310480882376,1,106
+formal_6feat_cl2d,Formal 6-feature + Cl2,rf,Random Forest,dbcm_in_avg,DBCM,ph_in_avg,pH,0.11429652448547233,2,106
+formal_6feat_cl2d,Formal 6-feature + Cl2,rf,Random Forest,dbcm_in_avg,DBCM,cl2d_in_avg,Cl2 dose,0.0826657880439609,3,106
+formal_6feat_cl2d,Formal 6-feature + Cl2,rf,Random Forest,dbcm_in_avg,DBCM,uv_in_avg,UV254,0.0733888510383804,4,106
+formal_6feat_cl2d,Formal 6-feature + Cl2,rf,Random Forest,dbcm_in_avg,DBCM,temp_in_avg,Temperature,0.0505719338498075,5,106
+formal_6feat_cl2d,Formal 6-feature + Cl2,rf,Random Forest,dbcm_in_avg,DBCM,toc_in_avg,TOC,0.044055222318562404,6,106
+formal_6feat_cl2d,Formal 6-feature + Cl2,rf,Random Forest,thm4_in_avg,THM4,cl2d_in_avg,Cl2 dose,0.2139106409516303,1,106
+formal_6feat_cl2d,Formal 6-feature + Cl2,rf,Random Forest,thm4_in_avg,THM4,toc_in_avg,TOC,0.18919791748124978,2,106
+formal_6feat_cl2d,Formal 6-feature + Cl2,rf,Random Forest,thm4_in_avg,THM4,br_in_avg,Bromide,0.12074703949874264,3,106
+formal_6feat_cl2d,Formal 6-feature + Cl2,rf,Random Forest,thm4_in_avg,THM4,uv_in_avg,UV254,0.0961169980754781,4,106
+formal_6feat_cl2d,Formal 6-feature + Cl2,rf,Random Forest,thm4_in_avg,THM4,temp_in_avg,Temperature,0.02304986019181979,5,106
+formal_6feat_cl2d,Formal 6-feature + Cl2,rf,Random Forest,thm4_in_avg,THM4,ph_in_avg,pH,0.013632788449524697,6,106
+formal_6feat_cl2d,Formal 6-feature + Cl2,xgb,XGBoost,bdcm_in_avg,BDCM,br_in_avg,Bromide,0.45694485306739807,1,106
+formal_6feat_cl2d,Formal 6-feature + Cl2,xgb,XGBoost,bdcm_in_avg,BDCM,cl2d_in_avg,Cl2 dose,0.21301275491714478,2,106
+formal_6feat_cl2d,Formal 6-feature + Cl2,xgb,XGBoost,bdcm_in_avg,BDCM,uv_in_avg,UV254,0.11512748897075653,3,106
+formal_6feat_cl2d,Formal 6-feature + Cl2,xgb,XGBoost,bdcm_in_avg,BDCM,toc_in_avg,TOC,0.10124289244413376,4,106
+formal_6feat_cl2d,Formal 6-feature + Cl2,xgb,XGBoost,bdcm_in_avg,BDCM,ph_in_avg,pH,0.04339393600821495,5,106
+formal_6feat_cl2d,Formal 6-feature + Cl2,xgb,XGBoost,bdcm_in_avg,BDCM,temp_in_avg,Temperature,0.03868481516838074,6,106
+formal_6feat_cl2d,Formal 6-feature + Cl2,xgb,XGBoost,dbcm_in_avg,DBCM,br_in_avg,Bromide,0.3712243139743805,1,106
+formal_6feat_cl2d,Formal 6-feature + Cl2,xgb,XGBoost,dbcm_in_avg,DBCM,temp_in_avg,Temperature,0.09490841627120972,2,106
+formal_6feat_cl2d,Formal 6-feature + Cl2,xgb,XGBoost,dbcm_in_avg,DBCM,uv_in_avg,UV254,0.07793182134628296,3,106
+formal_6feat_cl2d,Formal 6-feature + Cl2,xgb,XGBoost,dbcm_in_avg,DBCM,ph_in_avg,pH,0.06340821832418442,4,106
+formal_6feat_cl2d,Formal 6-feature + Cl2,xgb,XGBoost,dbcm_in_avg,DBCM,cl2d_in_avg,Cl2 dose,0.057485293596982956,5,106
+formal_6feat_cl2d,Formal 6-feature + Cl2,xgb,XGBoost,dbcm_in_avg,DBCM,toc_in_avg,TOC,0.04531834274530411,6,106
+formal_6feat_cl2d,Formal 6-feature + Cl2,xgb,XGBoost,thm4_in_avg,THM4,cl2d_in_avg,Cl2 dose,0.23921330273151398,1,106
+formal_6feat_cl2d,Formal 6-feature + Cl2,xgb,XGBoost,thm4_in_avg,THM4,toc_in_avg,TOC,0.15929733216762543,2,106
+formal_6feat_cl2d,Formal 6-feature + Cl2,xgb,XGBoost,thm4_in_avg,THM4,br_in_avg,Bromide,0.13180328905582428,3,106
+formal_6feat_cl2d,Formal 6-feature + Cl2,xgb,XGBoost,thm4_in_avg,THM4,uv_in_avg,UV254,0.06364528834819794,4,106
+formal_6feat_cl2d,Formal 6-feature + Cl2,xgb,XGBoost,thm4_in_avg,THM4,ph_in_avg,pH,0.03324083238840103,5,106
+formal_6feat_cl2d,Formal 6-feature + Cl2,xgb,XGBoost,thm4_in_avg,THM4,temp_in_avg,Temperature,0.025470629334449768,6,106

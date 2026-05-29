@@ -1,0 +1,22 @@
+target,target_label,model,model_label,feature,feature_label,mean_abs_shap,rank,test_rows,run_dir
+bdcm_in_avg,BDCM,rf,Random Forest,br_in_avg,Bromide,0.4355060121445236,1,106,/Users/xjzou/Desktop/DBPs-prediction-by-kan-main/checkpoints/formal_dataset1_7feat_cl2d_contact_time_bdcm_avg/20260331T214748Z
+bdcm_in_avg,BDCM,rf,Random Forest,cl2d_in_avg,Cl2 dose,0.25122210224851316,2,106,/Users/xjzou/Desktop/DBPs-prediction-by-kan-main/checkpoints/formal_dataset1_7feat_cl2d_contact_time_bdcm_avg/20260331T214748Z
+bdcm_in_avg,BDCM,rf,Random Forest,uv_in_avg,UV254,0.11220222895331725,3,106,/Users/xjzou/Desktop/DBPs-prediction-by-kan-main/checkpoints/formal_dataset1_7feat_cl2d_contact_time_bdcm_avg/20260331T214748Z
+bdcm_in_avg,BDCM,rf,Random Forest,toc_in_avg,TOC,0.10490436558276824,4,106,/Users/xjzou/Desktop/DBPs-prediction-by-kan-main/checkpoints/formal_dataset1_7feat_cl2d_contact_time_bdcm_avg/20260331T214748Z
+bdcm_in_avg,BDCM,rf,Random Forest,time_sds_avg,Contact time,0.08339122558369011,5,106,/Users/xjzou/Desktop/DBPs-prediction-by-kan-main/checkpoints/formal_dataset1_7feat_cl2d_contact_time_bdcm_avg/20260331T214748Z
+bdcm_in_avg,BDCM,rf,Random Forest,temp_in_avg,Temperature,0.028753529631094007,6,106,/Users/xjzou/Desktop/DBPs-prediction-by-kan-main/checkpoints/formal_dataset1_7feat_cl2d_contact_time_bdcm_avg/20260331T214748Z
+bdcm_in_avg,BDCM,rf,Random Forest,ph_in_avg,pH,0.024068368100693727,7,106,/Users/xjzou/Desktop/DBPs-prediction-by-kan-main/checkpoints/formal_dataset1_7feat_cl2d_contact_time_bdcm_avg/20260331T214748Z
+dbcm_in_avg,DBCM,mlp,MLP,br_in_avg,Bromide,0.2677311795411368,1,106,/Users/xjzou/Desktop/DBPs-prediction-by-kan-main/checkpoints/formal_dataset1_7feat_cl2d_contact_time_dbcm_avg/20260331T225500Z
+dbcm_in_avg,DBCM,mlp,MLP,uv_in_avg,UV254,0.10177828942264402,2,106,/Users/xjzou/Desktop/DBPs-prediction-by-kan-main/checkpoints/formal_dataset1_7feat_cl2d_contact_time_dbcm_avg/20260331T225500Z
+dbcm_in_avg,DBCM,mlp,MLP,cl2d_in_avg,Cl2 dose,0.09820169709898795,3,106,/Users/xjzou/Desktop/DBPs-prediction-by-kan-main/checkpoints/formal_dataset1_7feat_cl2d_contact_time_dbcm_avg/20260331T225500Z
+dbcm_in_avg,DBCM,mlp,MLP,temp_in_avg,Temperature,0.08374596781554092,4,106,/Users/xjzou/Desktop/DBPs-prediction-by-kan-main/checkpoints/formal_dataset1_7feat_cl2d_contact_time_dbcm_avg/20260331T225500Z
+dbcm_in_avg,DBCM,mlp,MLP,toc_in_avg,TOC,0.08317586395934326,5,106,/Users/xjzou/Desktop/DBPs-prediction-by-kan-main/checkpoints/formal_dataset1_7feat_cl2d_contact_time_dbcm_avg/20260331T225500Z
+dbcm_in_avg,DBCM,mlp,MLP,time_sds_avg,Contact time,0.05680782260357487,6,106,/Users/xjzou/Desktop/DBPs-prediction-by-kan-main/checkpoints/formal_dataset1_7feat_cl2d_contact_time_dbcm_avg/20260331T225500Z
+dbcm_in_avg,DBCM,mlp,MLP,ph_in_avg,pH,0.038234608715413634,7,106,/Users/xjzou/Desktop/DBPs-prediction-by-kan-main/checkpoints/formal_dataset1_7feat_cl2d_contact_time_dbcm_avg/20260331T225500Z
+thm4_in_avg,THM4,rf,Random Forest,cl2d_in_avg,Cl2 dose,0.2543320388914047,1,106,/Users/xjzou/Desktop/DBPs-prediction-by-kan-main/checkpoints/formal_dataset1_7feat_cl2d_contact_time_thm4_avg/20260331T214748Z
+thm4_in_avg,THM4,rf,Random Forest,toc_in_avg,TOC,0.20498736214258506,2,106,/Users/xjzou/Desktop/DBPs-prediction-by-kan-main/checkpoints/formal_dataset1_7feat_cl2d_contact_time_thm4_avg/20260331T214748Z
+thm4_in_avg,THM4,rf,Random Forest,br_in_avg,Bromide,0.10798687524799712,3,106,/Users/xjzou/Desktop/DBPs-prediction-by-kan-main/checkpoints/formal_dataset1_7feat_cl2d_contact_time_thm4_avg/20260331T214748Z
+thm4_in_avg,THM4,rf,Random Forest,uv_in_avg,UV254,0.07479539440011011,4,106,/Users/xjzou/Desktop/DBPs-prediction-by-kan-main/checkpoints/formal_dataset1_7feat_cl2d_contact_time_thm4_avg/20260331T214748Z
+thm4_in_avg,THM4,rf,Random Forest,time_sds_avg,Contact time,0.057460233568814655,5,106,/Users/xjzou/Desktop/DBPs-prediction-by-kan-main/checkpoints/formal_dataset1_7feat_cl2d_contact_time_thm4_avg/20260331T214748Z
+thm4_in_avg,THM4,rf,Random Forest,temp_in_avg,Temperature,0.022549126567722406,6,106,/Users/xjzou/Desktop/DBPs-prediction-by-kan-main/checkpoints/formal_dataset1_7feat_cl2d_contact_time_thm4_avg/20260331T214748Z
+thm4_in_avg,THM4,rf,Random Forest,ph_in_avg,pH,0.01686729462862515,7,106,/Users/xjzou/Desktop/DBPs-prediction-by-kan-main/checkpoints/formal_dataset1_7feat_cl2d_contact_time_thm4_avg/20260331T214748Z

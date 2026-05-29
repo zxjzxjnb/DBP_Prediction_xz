@@ -1,0 +1,6 @@
+feature,feature_label,mean_abs_shap,rank
+br_in_avg,Bromide,10.97295,1
+uv_in_avg,UV254,2.359732,2
+temp_in_avg,Temperature,2.1961498,3
+ph_in_avg,pH,1.5726805,4
+toc_in_avg,TOC,1.0361803,5

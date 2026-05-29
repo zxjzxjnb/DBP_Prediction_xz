@@ -1,0 +1,7 @@
+feature,feature_label,mean_abs_shap,rank
+cl2d_in_avg,Cl₂ dose,44.644062,1
+uv_in_avg,UV254,11.5392,2
+br_in_avg,Bromide,10.59704,3
+toc_in_avg,TOC,5.4779754,4
+temp_in_avg,Temperature,2.6912153,5
+ph_in_avg,pH,1.7897726,6

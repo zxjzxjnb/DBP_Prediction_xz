@@ -1,0 +1,13 @@
+target,target_label,model,experiment,spec_label,group,mean_abs,share_pct
+T_THMs_ug_L,T-THMs,rf,5feat,"RF, 5-feature",Temperature,0.537043694928086,64.65175233549247
+T_THMs_ug_L,T-THMs,rf,5feat,"RF, 5-feature",Br-,0.0,0.0
+T_THMs_ug_L,T-THMs,rf,5feat,"RF, 5-feature",Nitrogen,0.0,0.0
+T_THMs_ug_L,T-THMs,rf,5feat,"RF, 5-feature",Other water quality,0.29362782676748317,35.348247664507525
+DBCM_ug_L,DBCM,mlp,5feat,"MLP, 5-feature",Temperature,0.45616741921628234,49.82561230491144
+DBCM_ug_L,DBCM,mlp,5feat,"MLP, 5-feature",Br-,0.0,0.0
+DBCM_ug_L,DBCM,mlp,5feat,"MLP, 5-feature",Nitrogen,0.0,0.0
+DBCM_ug_L,DBCM,mlp,5feat,"MLP, 5-feature",Other water quality,0.4593605554822177,50.174387695088555
+BDCM_ug_L,BDCM,mlp,6feat,"MLP, 6-feature (+Br-)",Temperature,0.6382535661204272,55.07916570578494
+BDCM_ug_L,BDCM,mlp,6feat,"MLP, 6-feature (+Br-)",Br-,0.15467332443725662,13.347794856404855
+BDCM_ug_L,BDCM,mlp,6feat,"MLP, 6-feature (+Br-)",Nitrogen,0.0,0.0
+BDCM_ug_L,BDCM,mlp,6feat,"MLP, 6-feature (+Br-)",Other water quality,0.3658661992464918,31.573039437810202

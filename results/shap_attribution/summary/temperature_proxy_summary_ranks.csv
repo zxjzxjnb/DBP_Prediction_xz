@@ -1,0 +1,6 @@
+signal,condition_group,mean_rank
+Temperature,"A' DWTP-B, N=175, 5 features",1.0
+Temperature,"D Dataset1, N=175, 5 features",4.133333333333334
+Temperature,"B Dataset1, N=488, 5 features",3.8333333333333335
+Temperature,"C/E Dataset1, +Cl2",4.805555555555555
+Cl2 dose,"C/E Dataset1, +Cl2",2.111111111111111

@@ -1,0 +1,265 @@
+run,run_label,model,model_label,target,target_label,group,method,feature,feature_label,importance_mean,importance_std,rank,n_rows,n_tsids
+B,Dataset1 formal 5-feature,rf,Random Forest,thm4_in_avg,THM4,low,shap,toc_in_avg,TOC,63.48398668293141,0.0,1,50,10
+B,Dataset1 formal 5-feature,rf,Random Forest,thm4_in_avg,THM4,low,shap,uv_in_avg,UV254,22.178912713741784,0.0,2,50,10
+B,Dataset1 formal 5-feature,rf,Random Forest,thm4_in_avg,THM4,low,shap,br_in_avg,Bromide,18.38665558877386,0.0,3,50,10
+B,Dataset1 formal 5-feature,rf,Random Forest,thm4_in_avg,THM4,low,shap,temp_in_avg,Temperature,5.619564978190026,0.0,4,50,10
+B,Dataset1 formal 5-feature,rf,Random Forest,thm4_in_avg,THM4,low,shap,ph_in_avg,pH,2.6632451738567817,0.0,5,50,10
+B,Dataset1 formal 5-feature,rf,Random Forest,thm4_in_avg,THM4,low,permutation,toc_in_avg,TOC,112.73207493042382,21.8794275135765,1,50,10
+B,Dataset1 formal 5-feature,rf,Random Forest,thm4_in_avg,THM4,low,permutation,br_in_avg,Bromide,32.35261063418396,10.606148091568853,2,50,10
+B,Dataset1 formal 5-feature,rf,Random Forest,thm4_in_avg,THM4,low,permutation,uv_in_avg,UV254,29.928032953506385,4.810914179618594,3,50,10
+B,Dataset1 formal 5-feature,rf,Random Forest,thm4_in_avg,THM4,low,permutation,temp_in_avg,Temperature,15.303901523086704,5.250147088330262,4,50,10
+B,Dataset1 formal 5-feature,rf,Random Forest,thm4_in_avg,THM4,low,permutation,ph_in_avg,pH,-0.5367112401940588,1.5766182348240931,5,50,10
+B,Dataset1 formal 5-feature,rf,Random Forest,thm4_in_avg,THM4,high,shap,toc_in_avg,TOC,22.72354810416373,0.0,1,55,7
+B,Dataset1 formal 5-feature,rf,Random Forest,thm4_in_avg,THM4,high,shap,br_in_avg,Bromide,18.80984928796226,0.0,2,55,7
+B,Dataset1 formal 5-feature,rf,Random Forest,thm4_in_avg,THM4,high,shap,uv_in_avg,UV254,14.371227516355315,0.0,3,55,7
+B,Dataset1 formal 5-feature,rf,Random Forest,thm4_in_avg,THM4,high,shap,temp_in_avg,Temperature,6.372034271487257,0.0,4,55,7
+B,Dataset1 formal 5-feature,rf,Random Forest,thm4_in_avg,THM4,high,shap,ph_in_avg,pH,2.707619435409262,0.0,5,55,7
+B,Dataset1 formal 5-feature,rf,Random Forest,thm4_in_avg,THM4,high,permutation,ph_in_avg,pH,2.6499823951136294,1.1666755891553098,1,55,7
+B,Dataset1 formal 5-feature,rf,Random Forest,thm4_in_avg,THM4,high,permutation,uv_in_avg,UV254,0.19758282156744436,1.5846029904557943,2,55,7
+B,Dataset1 formal 5-feature,rf,Random Forest,thm4_in_avg,THM4,high,permutation,toc_in_avg,TOC,-0.19817046430032512,2.8050357457140263,3,55,7
+B,Dataset1 formal 5-feature,rf,Random Forest,thm4_in_avg,THM4,high,permutation,temp_in_avg,Temperature,-2.5722950926553216,1.1124606629503615,4,55,7
+B,Dataset1 formal 5-feature,rf,Random Forest,thm4_in_avg,THM4,high,permutation,br_in_avg,Bromide,-7.11215289867215,2.379166004229064,5,55,7
+B,Dataset1 formal 5-feature,rf,Random Forest,dbcm_in_avg,DBCM,low,shap,br_in_avg,Bromide,7.807422409369138,0.0,1,50,10
+B,Dataset1 formal 5-feature,rf,Random Forest,dbcm_in_avg,DBCM,low,shap,ph_in_avg,pH,2.664777055925397,0.0,2,50,10
+B,Dataset1 formal 5-feature,rf,Random Forest,dbcm_in_avg,DBCM,low,shap,uv_in_avg,UV254,2.476030784124963,0.0,3,50,10
+B,Dataset1 formal 5-feature,rf,Random Forest,dbcm_in_avg,DBCM,low,shap,toc_in_avg,TOC,1.2847792013505686,0.0,4,50,10
+B,Dataset1 formal 5-feature,rf,Random Forest,dbcm_in_avg,DBCM,low,shap,temp_in_avg,Temperature,1.1349489582681094,0.0,5,50,10
+B,Dataset1 formal 5-feature,rf,Random Forest,dbcm_in_avg,DBCM,low,permutation,br_in_avg,Bromide,9.44283741369146,0.8571468817089213,1,50,10
+B,Dataset1 formal 5-feature,rf,Random Forest,dbcm_in_avg,DBCM,low,permutation,uv_in_avg,UV254,3.0824925408276393,0.6031621387844922,2,50,10
+B,Dataset1 formal 5-feature,rf,Random Forest,dbcm_in_avg,DBCM,low,permutation,toc_in_avg,TOC,1.4696206623291808,0.3456918670254497,3,50,10
+B,Dataset1 formal 5-feature,rf,Random Forest,dbcm_in_avg,DBCM,low,permutation,temp_in_avg,Temperature,0.894638257698964,0.18798881068542406,4,50,10
+B,Dataset1 formal 5-feature,rf,Random Forest,dbcm_in_avg,DBCM,low,permutation,ph_in_avg,pH,0.7787773713531085,0.49127685577870905,5,50,10
+B,Dataset1 formal 5-feature,rf,Random Forest,dbcm_in_avg,DBCM,high,shap,br_in_avg,Bromide,7.937310276172554,0.0,1,55,7
+B,Dataset1 formal 5-feature,rf,Random Forest,dbcm_in_avg,DBCM,high,shap,ph_in_avg,pH,2.2818500213500683,0.0,2,55,7
+B,Dataset1 formal 5-feature,rf,Random Forest,dbcm_in_avg,DBCM,high,shap,temp_in_avg,Temperature,1.7394714542296887,0.0,3,55,7
+B,Dataset1 formal 5-feature,rf,Random Forest,dbcm_in_avg,DBCM,high,shap,uv_in_avg,UV254,1.4142343627479612,0.0,4,55,7
+B,Dataset1 formal 5-feature,rf,Random Forest,dbcm_in_avg,DBCM,high,shap,toc_in_avg,TOC,1.112617294160918,0.0,5,55,7
+B,Dataset1 formal 5-feature,rf,Random Forest,dbcm_in_avg,DBCM,high,permutation,br_in_avg,Bromide,3.0741243893739045,0.49923215511552743,1,55,7
+B,Dataset1 formal 5-feature,rf,Random Forest,dbcm_in_avg,DBCM,high,permutation,uv_in_avg,UV254,0.09786047787787817,0.19888410534174983,2,55,7
+B,Dataset1 formal 5-feature,rf,Random Forest,dbcm_in_avg,DBCM,high,permutation,ph_in_avg,pH,0.040198119317984025,0.3720012105163228,3,55,7
+B,Dataset1 formal 5-feature,rf,Random Forest,dbcm_in_avg,DBCM,high,permutation,toc_in_avg,TOC,-0.5232746861201859,0.20270460085019648,4,55,7
+B,Dataset1 formal 5-feature,rf,Random Forest,dbcm_in_avg,DBCM,high,permutation,temp_in_avg,Temperature,-0.6739816442142557,0.4438131750655012,5,55,7
+B,Dataset1 formal 5-feature,rf,Random Forest,bdcm_in_avg,BDCM,low,shap,br_in_avg,Bromide,11.59030068022101,0.0,1,50,10
+B,Dataset1 formal 5-feature,rf,Random Forest,bdcm_in_avg,BDCM,low,shap,uv_in_avg,UV254,5.35150396799128,0.0,2,50,10
+B,Dataset1 formal 5-feature,rf,Random Forest,bdcm_in_avg,BDCM,low,shap,toc_in_avg,TOC,4.227404880518419,0.0,3,50,10
+B,Dataset1 formal 5-feature,rf,Random Forest,bdcm_in_avg,BDCM,low,shap,ph_in_avg,pH,0.8331098620559299,0.0,4,50,10
+B,Dataset1 formal 5-feature,rf,Random Forest,bdcm_in_avg,BDCM,low,shap,temp_in_avg,Temperature,0.7631526653261338,0.0,5,50,10
+B,Dataset1 formal 5-feature,rf,Random Forest,bdcm_in_avg,BDCM,low,permutation,br_in_avg,Bromide,12.839525699797099,1.1175249107042529,1,50,10
+B,Dataset1 formal 5-feature,rf,Random Forest,bdcm_in_avg,BDCM,low,permutation,uv_in_avg,UV254,4.951693883172746,0.7306511557541645,2,50,10
+B,Dataset1 formal 5-feature,rf,Random Forest,bdcm_in_avg,BDCM,low,permutation,toc_in_avg,TOC,3.094542864210814,0.7537592740101258,3,50,10
+B,Dataset1 formal 5-feature,rf,Random Forest,bdcm_in_avg,BDCM,low,permutation,temp_in_avg,Temperature,0.32524638544916007,0.1693114839485474,4,50,10
+B,Dataset1 formal 5-feature,rf,Random Forest,bdcm_in_avg,BDCM,low,permutation,ph_in_avg,pH,-0.45141636004341323,0.35697349772358933,5,50,10
+B,Dataset1 formal 5-feature,rf,Random Forest,bdcm_in_avg,BDCM,high,shap,br_in_avg,Bromide,5.870866768872995,0.0,1,55,7
+B,Dataset1 formal 5-feature,rf,Random Forest,bdcm_in_avg,BDCM,high,shap,uv_in_avg,UV254,2.4151767796667185,0.0,2,55,7
+B,Dataset1 formal 5-feature,rf,Random Forest,bdcm_in_avg,BDCM,high,shap,toc_in_avg,TOC,1.900928397371593,0.0,3,55,7
+B,Dataset1 formal 5-feature,rf,Random Forest,bdcm_in_avg,BDCM,high,shap,temp_in_avg,Temperature,1.1790413916036002,0.0,4,55,7
+B,Dataset1 formal 5-feature,rf,Random Forest,bdcm_in_avg,BDCM,high,shap,ph_in_avg,pH,0.5948493925744031,0.0,5,55,7
+B,Dataset1 formal 5-feature,rf,Random Forest,bdcm_in_avg,BDCM,high,permutation,br_in_avg,Bromide,1.4191922167995519,1.120199563071875,1,55,7
+B,Dataset1 formal 5-feature,rf,Random Forest,bdcm_in_avg,BDCM,high,permutation,ph_in_avg,pH,0.15792624850955886,0.1377563402826603,2,55,7
+B,Dataset1 formal 5-feature,rf,Random Forest,bdcm_in_avg,BDCM,high,permutation,uv_in_avg,UV254,0.020476305293719577,0.4712947401231644,3,55,7
+B,Dataset1 formal 5-feature,rf,Random Forest,bdcm_in_avg,BDCM,high,permutation,toc_in_avg,TOC,-0.2931703413136139,0.3755725297764289,4,55,7
+B,Dataset1 formal 5-feature,rf,Random Forest,bdcm_in_avg,BDCM,high,permutation,temp_in_avg,Temperature,-0.4630072824639021,0.19974317986296028,5,55,7
+B,Dataset1 formal 5-feature,xgb,XGBoost,thm4_in_avg,THM4,low,shap,toc_in_avg,TOC,63.39903259277344,0.0,1,50,10
+B,Dataset1 formal 5-feature,xgb,XGBoost,thm4_in_avg,THM4,low,shap,uv_in_avg,UV254,25.269092559814453,0.0,2,50,10
+B,Dataset1 formal 5-feature,xgb,XGBoost,thm4_in_avg,THM4,low,shap,br_in_avg,Bromide,20.502111434936523,0.0,3,50,10
+B,Dataset1 formal 5-feature,xgb,XGBoost,thm4_in_avg,THM4,low,shap,ph_in_avg,pH,9.308228492736816,0.0,4,50,10
+B,Dataset1 formal 5-feature,xgb,XGBoost,thm4_in_avg,THM4,low,shap,temp_in_avg,Temperature,6.6769118309021,0.0,5,50,10
+B,Dataset1 formal 5-feature,xgb,XGBoost,thm4_in_avg,THM4,low,permutation,toc_in_avg,TOC,74.6682482685879,10.663993781881786,1,50,10
+B,Dataset1 formal 5-feature,xgb,XGBoost,thm4_in_avg,THM4,low,permutation,br_in_avg,Bromide,7.410066501904194,4.323656683811214,2,50,10
+B,Dataset1 formal 5-feature,xgb,XGBoost,thm4_in_avg,THM4,low,permutation,uv_in_avg,UV254,0.5782711271187153,4.932302000835306,3,50,10
+B,Dataset1 formal 5-feature,xgb,XGBoost,thm4_in_avg,THM4,low,permutation,temp_in_avg,Temperature,-5.270338124985484,2.0032875729320265,4,50,10
+B,Dataset1 formal 5-feature,xgb,XGBoost,thm4_in_avg,THM4,low,permutation,ph_in_avg,pH,-13.504167243536301,5.682098910076324,5,50,10
+B,Dataset1 formal 5-feature,xgb,XGBoost,thm4_in_avg,THM4,high,shap,toc_in_avg,TOC,19.73102378845215,0.0,1,55,7
+B,Dataset1 formal 5-feature,xgb,XGBoost,thm4_in_avg,THM4,high,shap,br_in_avg,Bromide,18.718488693237305,0.0,2,55,7
+B,Dataset1 formal 5-feature,xgb,XGBoost,thm4_in_avg,THM4,high,shap,uv_in_avg,UV254,12.931720733642578,0.0,3,55,7
+B,Dataset1 formal 5-feature,xgb,XGBoost,thm4_in_avg,THM4,high,shap,temp_in_avg,Temperature,6.230518817901611,0.0,4,55,7
+B,Dataset1 formal 5-feature,xgb,XGBoost,thm4_in_avg,THM4,high,shap,ph_in_avg,pH,5.580698013305664,0.0,5,55,7
+B,Dataset1 formal 5-feature,xgb,XGBoost,thm4_in_avg,THM4,high,permutation,ph_in_avg,pH,3.141992934349709,1.6581401032347454,1,55,7
+B,Dataset1 formal 5-feature,xgb,XGBoost,thm4_in_avg,THM4,high,permutation,toc_in_avg,TOC,1.9542562724484132,3.062380078599861,2,55,7
+B,Dataset1 formal 5-feature,xgb,XGBoost,thm4_in_avg,THM4,high,permutation,uv_in_avg,UV254,-2.167331106093451,1.8076219158650786,3,55,7
+B,Dataset1 formal 5-feature,xgb,XGBoost,thm4_in_avg,THM4,high,permutation,temp_in_avg,Temperature,-2.8084279650179975,0.9859087798648328,4,55,7
+B,Dataset1 formal 5-feature,xgb,XGBoost,thm4_in_avg,THM4,high,permutation,br_in_avg,Bromide,-6.901711154678866,2.684667264853493,5,55,7
+B,Dataset1 formal 5-feature,xgb,XGBoost,dbcm_in_avg,DBCM,low,shap,br_in_avg,Bromide,8.868332862854004,0.0,1,50,10
+B,Dataset1 formal 5-feature,xgb,XGBoost,dbcm_in_avg,DBCM,low,shap,uv_in_avg,UV254,3.1811816692352295,0.0,2,50,10
+B,Dataset1 formal 5-feature,xgb,XGBoost,dbcm_in_avg,DBCM,low,shap,temp_in_avg,Temperature,2.1608495712280273,0.0,3,50,10
+B,Dataset1 formal 5-feature,xgb,XGBoost,dbcm_in_avg,DBCM,low,shap,ph_in_avg,pH,2.026573657989502,0.0,4,50,10
+B,Dataset1 formal 5-feature,xgb,XGBoost,dbcm_in_avg,DBCM,low,shap,toc_in_avg,TOC,1.2440698146820068,0.0,5,50,10
+B,Dataset1 formal 5-feature,xgb,XGBoost,dbcm_in_avg,DBCM,low,permutation,br_in_avg,Bromide,11.132975241782122,0.9494883331965348,1,50,10
+B,Dataset1 formal 5-feature,xgb,XGBoost,dbcm_in_avg,DBCM,low,permutation,uv_in_avg,UV254,3.8113035106721562,0.8031091585626968,2,50,10
+B,Dataset1 formal 5-feature,xgb,XGBoost,dbcm_in_avg,DBCM,low,permutation,temp_in_avg,Temperature,2.803759323333659,0.576081789571411,3,50,10
+B,Dataset1 formal 5-feature,xgb,XGBoost,dbcm_in_avg,DBCM,low,permutation,toc_in_avg,TOC,0.7924428663227822,0.24431171811434904,4,50,10
+B,Dataset1 formal 5-feature,xgb,XGBoost,dbcm_in_avg,DBCM,low,permutation,ph_in_avg,pH,0.05705554578811249,0.2838855151541267,5,50,10
+B,Dataset1 formal 5-feature,xgb,XGBoost,dbcm_in_avg,DBCM,high,shap,br_in_avg,Bromide,7.680908679962158,0.0,1,55,7
+B,Dataset1 formal 5-feature,xgb,XGBoost,dbcm_in_avg,DBCM,high,shap,temp_in_avg,Temperature,2.736651659011841,0.0,2,55,7
+B,Dataset1 formal 5-feature,xgb,XGBoost,dbcm_in_avg,DBCM,high,shap,uv_in_avg,UV254,1.6966917514801025,0.0,3,55,7
+B,Dataset1 formal 5-feature,xgb,XGBoost,dbcm_in_avg,DBCM,high,shap,ph_in_avg,pH,1.4283424615859985,0.0,4,55,7
+B,Dataset1 formal 5-feature,xgb,XGBoost,dbcm_in_avg,DBCM,high,shap,toc_in_avg,TOC,1.3596817255020142,0.0,5,55,7
+B,Dataset1 formal 5-feature,xgb,XGBoost,dbcm_in_avg,DBCM,high,permutation,br_in_avg,Bromide,3.6758397373164655,0.4321986515703024,1,55,7
+B,Dataset1 formal 5-feature,xgb,XGBoost,dbcm_in_avg,DBCM,high,permutation,ph_in_avg,pH,0.7587955890930704,0.2743319400229858,2,55,7
+B,Dataset1 formal 5-feature,xgb,XGBoost,dbcm_in_avg,DBCM,high,permutation,temp_in_avg,Temperature,-0.02843624893589678,0.540841193680005,3,55,7
+B,Dataset1 formal 5-feature,xgb,XGBoost,dbcm_in_avg,DBCM,high,permutation,toc_in_avg,TOC,-0.03277346850274356,0.2408674793320786,4,55,7
+B,Dataset1 formal 5-feature,xgb,XGBoost,dbcm_in_avg,DBCM,high,permutation,uv_in_avg,UV254,-0.07210451729656171,0.1690751995532727,5,55,7
+B,Dataset1 formal 5-feature,xgb,XGBoost,bdcm_in_avg,BDCM,low,shap,br_in_avg,Bromide,11.749456405639648,0.0,1,50,10
+B,Dataset1 formal 5-feature,xgb,XGBoost,bdcm_in_avg,BDCM,low,shap,uv_in_avg,UV254,4.922264575958252,0.0,2,50,10
+B,Dataset1 formal 5-feature,xgb,XGBoost,bdcm_in_avg,BDCM,low,shap,toc_in_avg,TOC,3.6199049949645996,0.0,3,50,10
+B,Dataset1 formal 5-feature,xgb,XGBoost,bdcm_in_avg,BDCM,low,shap,ph_in_avg,pH,1.2164663076400757,0.0,4,50,10
+B,Dataset1 formal 5-feature,xgb,XGBoost,bdcm_in_avg,BDCM,low,shap,temp_in_avg,Temperature,1.1767574548721313,0.0,5,50,10
+B,Dataset1 formal 5-feature,xgb,XGBoost,bdcm_in_avg,BDCM,low,permutation,br_in_avg,Bromide,11.354636751353022,0.9692355270329724,1,50,10
+B,Dataset1 formal 5-feature,xgb,XGBoost,bdcm_in_avg,BDCM,low,permutation,uv_in_avg,UV254,4.641075831393351,0.7947246155922857,2,50,10
+B,Dataset1 formal 5-feature,xgb,XGBoost,bdcm_in_avg,BDCM,low,permutation,toc_in_avg,TOC,2.7537334406752145,0.8086231786533051,3,50,10
+B,Dataset1 formal 5-feature,xgb,XGBoost,bdcm_in_avg,BDCM,low,permutation,temp_in_avg,Temperature,0.3471695828564454,0.22081324083939965,4,50,10
+B,Dataset1 formal 5-feature,xgb,XGBoost,bdcm_in_avg,BDCM,low,permutation,ph_in_avg,pH,-0.9519171338177295,0.45101417062302623,5,50,10
+B,Dataset1 formal 5-feature,xgb,XGBoost,bdcm_in_avg,BDCM,high,shap,br_in_avg,Bromide,5.552452087402344,0.0,1,55,7
+B,Dataset1 formal 5-feature,xgb,XGBoost,bdcm_in_avg,BDCM,high,shap,uv_in_avg,UV254,2.2403295040130615,0.0,2,55,7
+B,Dataset1 formal 5-feature,xgb,XGBoost,bdcm_in_avg,BDCM,high,shap,toc_in_avg,TOC,1.4665846824645996,0.0,3,55,7
+B,Dataset1 formal 5-feature,xgb,XGBoost,bdcm_in_avg,BDCM,high,shap,temp_in_avg,Temperature,1.4606596231460571,0.0,4,55,7
+B,Dataset1 formal 5-feature,xgb,XGBoost,bdcm_in_avg,BDCM,high,shap,ph_in_avg,pH,0.9805071949958801,0.0,5,55,7
+B,Dataset1 formal 5-feature,xgb,XGBoost,bdcm_in_avg,BDCM,high,permutation,br_in_avg,Bromide,1.0463550814632867,0.8825768165036374,1,55,7
+B,Dataset1 formal 5-feature,xgb,XGBoost,bdcm_in_avg,BDCM,high,permutation,ph_in_avg,pH,0.37491108758766123,0.19010623211639777,2,55,7
+B,Dataset1 formal 5-feature,xgb,XGBoost,bdcm_in_avg,BDCM,high,permutation,toc_in_avg,TOC,-0.41760115287365096,0.3846829278289125,3,55,7
+B,Dataset1 formal 5-feature,xgb,XGBoost,bdcm_in_avg,BDCM,high,permutation,uv_in_avg,UV254,-0.46918739710952184,0.38456640565615086,4,55,7
+B,Dataset1 formal 5-feature,xgb,XGBoost,bdcm_in_avg,BDCM,high,permutation,temp_in_avg,Temperature,-0.4725773431883041,0.2423016586849694,5,55,7
+C,Dataset1 formal 6-feature + Cl2,rf,Random Forest,thm4_in_avg,THM4,low,shap,toc_in_avg,TOC,34.96363027225218,0.0,1,50,10
+C,Dataset1 formal 6-feature + Cl2,rf,Random Forest,thm4_in_avg,THM4,low,shap,cl2d_in_avg,Cl2 dose,28.413308590933,0.0,2,50,10
+C,Dataset1 formal 6-feature + Cl2,rf,Random Forest,thm4_in_avg,THM4,low,shap,br_in_avg,Bromide,17.386533109064846,0.0,3,50,10
+C,Dataset1 formal 6-feature + Cl2,rf,Random Forest,thm4_in_avg,THM4,low,shap,uv_in_avg,UV254,15.288136245692554,0.0,4,50,10
+C,Dataset1 formal 6-feature + Cl2,rf,Random Forest,thm4_in_avg,THM4,low,shap,temp_in_avg,Temperature,2.663227151233117,0.0,5,50,10
+C,Dataset1 formal 6-feature + Cl2,rf,Random Forest,thm4_in_avg,THM4,low,shap,ph_in_avg,pH,2.1810374861798247,0.0,6,50,10
+C,Dataset1 formal 6-feature + Cl2,rf,Random Forest,thm4_in_avg,THM4,low,permutation,toc_in_avg,TOC,51.58705238687857,9.851269602510616,1,50,10
+C,Dataset1 formal 6-feature + Cl2,rf,Random Forest,thm4_in_avg,THM4,low,permutation,cl2d_in_avg,Cl2 dose,31.462581286251144,5.654106272568381,2,50,10
+C,Dataset1 formal 6-feature + Cl2,rf,Random Forest,thm4_in_avg,THM4,low,permutation,uv_in_avg,UV254,14.451639277830353,3.0357436829343216,3,50,10
+C,Dataset1 formal 6-feature + Cl2,rf,Random Forest,thm4_in_avg,THM4,low,permutation,br_in_avg,Bromide,12.824521441800036,4.442978376252226,4,50,10
+C,Dataset1 formal 6-feature + Cl2,rf,Random Forest,thm4_in_avg,THM4,low,permutation,ph_in_avg,pH,1.4920479526933856,1.0121458379223327,5,50,10
+C,Dataset1 formal 6-feature + Cl2,rf,Random Forest,thm4_in_avg,THM4,low,permutation,temp_in_avg,Temperature,-0.9909058281422052,1.2077446224092148,6,50,10
+C,Dataset1 formal 6-feature + Cl2,rf,Random Forest,thm4_in_avg,THM4,high,shap,cl2d_in_avg,Cl2 dose,25.11707984623425,0.0,1,55,7
+C,Dataset1 formal 6-feature + Cl2,rf,Random Forest,thm4_in_avg,THM4,high,shap,toc_in_avg,TOC,13.343971017614747,0.0,2,55,7
+C,Dataset1 formal 6-feature + Cl2,rf,Random Forest,thm4_in_avg,THM4,high,shap,br_in_avg,Bromide,13.22009762238684,0.0,3,55,7
+C,Dataset1 formal 6-feature + Cl2,rf,Random Forest,thm4_in_avg,THM4,high,shap,uv_in_avg,UV254,9.101786045354741,0.0,4,55,7
+C,Dataset1 formal 6-feature + Cl2,rf,Random Forest,thm4_in_avg,THM4,high,shap,temp_in_avg,Temperature,3.0597084630257996,0.0,5,55,7
+C,Dataset1 formal 6-feature + Cl2,rf,Random Forest,thm4_in_avg,THM4,high,shap,ph_in_avg,pH,1.2755378426523216,0.0,6,55,7
+C,Dataset1 formal 6-feature + Cl2,rf,Random Forest,thm4_in_avg,THM4,high,permutation,cl2d_in_avg,Cl2 dose,16.684715319829863,2.039727498906338,1,55,7
+C,Dataset1 formal 6-feature + Cl2,rf,Random Forest,thm4_in_avg,THM4,high,permutation,toc_in_avg,TOC,3.341011574390346,1.7053573313589052,2,55,7
+C,Dataset1 formal 6-feature + Cl2,rf,Random Forest,thm4_in_avg,THM4,high,permutation,uv_in_avg,UV254,0.4237451054436473,0.46170400782987375,3,55,7
+C,Dataset1 formal 6-feature + Cl2,rf,Random Forest,thm4_in_avg,THM4,high,permutation,ph_in_avg,pH,0.41862507970943347,0.3786908002821026,4,55,7
+C,Dataset1 formal 6-feature + Cl2,rf,Random Forest,thm4_in_avg,THM4,high,permutation,temp_in_avg,Temperature,-1.8418789189669689,0.7334382285186098,5,55,7
+C,Dataset1 formal 6-feature + Cl2,rf,Random Forest,thm4_in_avg,THM4,high,permutation,br_in_avg,Bromide,-3.651045601640233,0.9228130379760928,6,55,7
+C,Dataset1 formal 6-feature + Cl2,rf,Random Forest,dbcm_in_avg,DBCM,low,shap,br_in_avg,Bromide,6.73074804485853,0.0,1,50,10
+C,Dataset1 formal 6-feature + Cl2,rf,Random Forest,dbcm_in_avg,DBCM,low,shap,ph_in_avg,pH,2.741736607607611,0.0,2,50,10
+C,Dataset1 formal 6-feature + Cl2,rf,Random Forest,dbcm_in_avg,DBCM,low,shap,uv_in_avg,UV254,2.196503317229231,0.0,3,50,10
+C,Dataset1 formal 6-feature + Cl2,rf,Random Forest,dbcm_in_avg,DBCM,low,shap,cl2d_in_avg,Cl2 dose,1.694925081165714,0.0,4,50,10
+C,Dataset1 formal 6-feature + Cl2,rf,Random Forest,dbcm_in_avg,DBCM,low,shap,temp_in_avg,Temperature,0.9868753226210909,0.0,5,50,10
+C,Dataset1 formal 6-feature + Cl2,rf,Random Forest,dbcm_in_avg,DBCM,low,shap,toc_in_avg,TOC,0.9084643498283427,0.0,6,50,10
+C,Dataset1 formal 6-feature + Cl2,rf,Random Forest,dbcm_in_avg,DBCM,low,permutation,br_in_avg,Bromide,8.088752998995464,0.8588755237219042,1,50,10
+C,Dataset1 formal 6-feature + Cl2,rf,Random Forest,dbcm_in_avg,DBCM,low,permutation,uv_in_avg,UV254,2.4279430595053846,0.5897526907239509,2,50,10
+C,Dataset1 formal 6-feature + Cl2,rf,Random Forest,dbcm_in_avg,DBCM,low,permutation,cl2d_in_avg,Cl2 dose,1.2834238034074341,0.42424748416088004,3,50,10
+C,Dataset1 formal 6-feature + Cl2,rf,Random Forest,dbcm_in_avg,DBCM,low,permutation,toc_in_avg,TOC,1.1948540001882872,0.3265093174702752,4,50,10
+C,Dataset1 formal 6-feature + Cl2,rf,Random Forest,dbcm_in_avg,DBCM,low,permutation,temp_in_avg,Temperature,0.6756738226017599,0.1678041124867277,5,50,10
+C,Dataset1 formal 6-feature + Cl2,rf,Random Forest,dbcm_in_avg,DBCM,low,permutation,ph_in_avg,pH,0.5292790093776739,0.3658531220929162,6,50,10
+C,Dataset1 formal 6-feature + Cl2,rf,Random Forest,dbcm_in_avg,DBCM,high,shap,br_in_avg,Bromide,7.251394958583651,0.0,1,55,7
+C,Dataset1 formal 6-feature + Cl2,rf,Random Forest,dbcm_in_avg,DBCM,high,shap,ph_in_avg,pH,2.406824341603213,0.0,2,55,7
+C,Dataset1 formal 6-feature + Cl2,rf,Random Forest,dbcm_in_avg,DBCM,high,shap,cl2d_in_avg,Cl2 dose,2.015486662208206,0.0,3,55,7
+C,Dataset1 formal 6-feature + Cl2,rf,Random Forest,dbcm_in_avg,DBCM,high,shap,temp_in_avg,Temperature,1.2895819048567236,0.0,4,55,7
+C,Dataset1 formal 6-feature + Cl2,rf,Random Forest,dbcm_in_avg,DBCM,high,shap,uv_in_avg,UV254,1.162815107790371,0.0,5,55,7
+C,Dataset1 formal 6-feature + Cl2,rf,Random Forest,dbcm_in_avg,DBCM,high,shap,toc_in_avg,TOC,1.0661811711805842,0.0,6,55,7
+C,Dataset1 formal 6-feature + Cl2,rf,Random Forest,dbcm_in_avg,DBCM,high,permutation,br_in_avg,Bromide,2.5850047766662447,0.3879142300142292,1,55,7
+C,Dataset1 formal 6-feature + Cl2,rf,Random Forest,dbcm_in_avg,DBCM,high,permutation,cl2d_in_avg,Cl2 dose,0.750754673555536,0.2628471230377668,2,55,7
+C,Dataset1 formal 6-feature + Cl2,rf,Random Forest,dbcm_in_avg,DBCM,high,permutation,uv_in_avg,UV254,0.26407769783600776,0.12926905343086512,3,55,7
+C,Dataset1 formal 6-feature + Cl2,rf,Random Forest,dbcm_in_avg,DBCM,high,permutation,ph_in_avg,pH,0.24099498354601315,0.22546468609858053,4,55,7
+C,Dataset1 formal 6-feature + Cl2,rf,Random Forest,dbcm_in_avg,DBCM,high,permutation,toc_in_avg,TOC,0.22503004231526696,0.23060398011359312,5,55,7
+C,Dataset1 formal 6-feature + Cl2,rf,Random Forest,dbcm_in_avg,DBCM,high,permutation,temp_in_avg,Temperature,-0.13592229389096921,0.19205072146096813,6,55,7
+C,Dataset1 formal 6-feature + Cl2,rf,Random Forest,bdcm_in_avg,BDCM,low,shap,br_in_avg,Bromide,12.08023702682944,0.0,1,50,10
+C,Dataset1 formal 6-feature + Cl2,rf,Random Forest,bdcm_in_avg,BDCM,low,shap,cl2d_in_avg,Cl2 dose,6.001379513753254,0.0,2,50,10
+C,Dataset1 formal 6-feature + Cl2,rf,Random Forest,bdcm_in_avg,BDCM,low,shap,toc_in_avg,TOC,2.741371529187254,0.0,3,50,10
+C,Dataset1 formal 6-feature + Cl2,rf,Random Forest,bdcm_in_avg,BDCM,low,shap,uv_in_avg,UV254,2.474809992690192,0.0,4,50,10
+C,Dataset1 formal 6-feature + Cl2,rf,Random Forest,bdcm_in_avg,BDCM,low,shap,ph_in_avg,pH,0.5604983887180794,0.0,5,50,10
+C,Dataset1 formal 6-feature + Cl2,rf,Random Forest,bdcm_in_avg,BDCM,low,shap,temp_in_avg,Temperature,0.4800434725690234,0.0,6,50,10
+C,Dataset1 formal 6-feature + Cl2,rf,Random Forest,bdcm_in_avg,BDCM,low,permutation,br_in_avg,Bromide,12.3905688697179,1.0382964042223408,1,50,10
+C,Dataset1 formal 6-feature + Cl2,rf,Random Forest,bdcm_in_avg,BDCM,low,permutation,cl2d_in_avg,Cl2 dose,4.201215911065853,1.144257542179152,2,50,10
+C,Dataset1 formal 6-feature + Cl2,rf,Random Forest,bdcm_in_avg,BDCM,low,permutation,uv_in_avg,UV254,3.3336702882323004,1.0396704925517286,3,50,10
+C,Dataset1 formal 6-feature + Cl2,rf,Random Forest,bdcm_in_avg,BDCM,low,permutation,toc_in_avg,TOC,0.9505822212560495,0.5087162835862095,4,50,10
+C,Dataset1 formal 6-feature + Cl2,rf,Random Forest,bdcm_in_avg,BDCM,low,permutation,temp_in_avg,Temperature,-0.13360450031253643,0.15017086250501002,5,50,10
+C,Dataset1 formal 6-feature + Cl2,rf,Random Forest,bdcm_in_avg,BDCM,low,permutation,ph_in_avg,pH,-0.17889855602286592,0.16291913749273793,6,50,10
+C,Dataset1 formal 6-feature + Cl2,rf,Random Forest,bdcm_in_avg,BDCM,high,shap,br_in_avg,Bromide,5.546963415878173,0.0,1,55,7
+C,Dataset1 formal 6-feature + Cl2,rf,Random Forest,bdcm_in_avg,BDCM,high,shap,cl2d_in_avg,Cl2 dose,3.8499606474240915,0.0,2,55,7
+C,Dataset1 formal 6-feature + Cl2,rf,Random Forest,bdcm_in_avg,BDCM,high,shap,uv_in_avg,UV254,1.1603431049788178,0.0,3,55,7
+C,Dataset1 formal 6-feature + Cl2,rf,Random Forest,bdcm_in_avg,BDCM,high,shap,toc_in_avg,TOC,1.0055682029538897,0.0,4,55,7
+C,Dataset1 formal 6-feature + Cl2,rf,Random Forest,bdcm_in_avg,BDCM,high,shap,temp_in_avg,Temperature,0.637664017035664,0.0,5,55,7
+C,Dataset1 formal 6-feature + Cl2,rf,Random Forest,bdcm_in_avg,BDCM,high,shap,ph_in_avg,pH,0.49090461285964215,0.0,6,55,7
+C,Dataset1 formal 6-feature + Cl2,rf,Random Forest,bdcm_in_avg,BDCM,high,permutation,br_in_avg,Bromide,1.7717280842983292,0.9817359379686862,1,55,7
+C,Dataset1 formal 6-feature + Cl2,rf,Random Forest,bdcm_in_avg,BDCM,high,permutation,cl2d_in_avg,Cl2 dose,1.5781200409144114,0.5256552718584908,2,55,7
+C,Dataset1 formal 6-feature + Cl2,rf,Random Forest,bdcm_in_avg,BDCM,high,permutation,ph_in_avg,pH,0.05842197587471589,0.08918163450036765,3,55,7
+C,Dataset1 formal 6-feature + Cl2,rf,Random Forest,bdcm_in_avg,BDCM,high,permutation,temp_in_avg,Temperature,-0.03447538530693559,0.12079815524291106,4,55,7
+C,Dataset1 formal 6-feature + Cl2,rf,Random Forest,bdcm_in_avg,BDCM,high,permutation,toc_in_avg,TOC,-0.08146075489271767,0.23627171119668353,5,55,7
+C,Dataset1 formal 6-feature + Cl2,rf,Random Forest,bdcm_in_avg,BDCM,high,permutation,uv_in_avg,UV254,-0.15238717419212996,0.17642174418276424,6,55,7
+C,Dataset1 formal 6-feature + Cl2,xgb,XGBoost,thm4_in_avg,THM4,low,shap,cl2d_in_avg,Cl2 dose,31.356796264648438,0.0,1,50,10
+C,Dataset1 formal 6-feature + Cl2,xgb,XGBoost,thm4_in_avg,THM4,low,shap,toc_in_avg,TOC,29.769514083862305,0.0,2,50,10
+C,Dataset1 formal 6-feature + Cl2,xgb,XGBoost,thm4_in_avg,THM4,low,shap,br_in_avg,Bromide,18.104236602783203,0.0,3,50,10
+C,Dataset1 formal 6-feature + Cl2,xgb,XGBoost,thm4_in_avg,THM4,low,shap,uv_in_avg,UV254,7.3135857582092285,0.0,4,50,10
+C,Dataset1 formal 6-feature + Cl2,xgb,XGBoost,thm4_in_avg,THM4,low,shap,ph_in_avg,pH,5.348104476928711,0.0,5,50,10
+C,Dataset1 formal 6-feature + Cl2,xgb,XGBoost,thm4_in_avg,THM4,low,shap,temp_in_avg,Temperature,2.918519973754883,0.0,6,50,10
+C,Dataset1 formal 6-feature + Cl2,xgb,XGBoost,thm4_in_avg,THM4,low,permutation,toc_in_avg,TOC,32.28886328536787,5.702782452643193,1,50,10
+C,Dataset1 formal 6-feature + Cl2,xgb,XGBoost,thm4_in_avg,THM4,low,permutation,cl2d_in_avg,Cl2 dose,27.264526786736702,5.676424391049349,2,50,10
+C,Dataset1 formal 6-feature + Cl2,xgb,XGBoost,thm4_in_avg,THM4,low,permutation,br_in_avg,Bromide,12.174237062303444,4.120372466746939,3,50,10
+C,Dataset1 formal 6-feature + Cl2,xgb,XGBoost,thm4_in_avg,THM4,low,permutation,ph_in_avg,pH,4.5148981528125605,1.6953124113387623,4,50,10
+C,Dataset1 formal 6-feature + Cl2,xgb,XGBoost,thm4_in_avg,THM4,low,permutation,uv_in_avg,UV254,4.352495205508106,1.239182607792159,5,50,10
+C,Dataset1 formal 6-feature + Cl2,xgb,XGBoost,thm4_in_avg,THM4,low,permutation,temp_in_avg,Temperature,-0.9721442525628813,0.6721390975629964,6,50,10
+C,Dataset1 formal 6-feature + Cl2,xgb,XGBoost,thm4_in_avg,THM4,high,shap,cl2d_in_avg,Cl2 dose,28.124563217163086,0.0,1,55,7
+C,Dataset1 formal 6-feature + Cl2,xgb,XGBoost,thm4_in_avg,THM4,high,shap,br_in_avg,Bromide,15.356392860412598,0.0,2,55,7
+C,Dataset1 formal 6-feature + Cl2,xgb,XGBoost,thm4_in_avg,THM4,high,shap,toc_in_avg,TOC,11.106837272644043,0.0,3,55,7
+C,Dataset1 formal 6-feature + Cl2,xgb,XGBoost,thm4_in_avg,THM4,high,shap,uv_in_avg,UV254,8.538573265075684,0.0,4,55,7
+C,Dataset1 formal 6-feature + Cl2,xgb,XGBoost,thm4_in_avg,THM4,high,shap,temp_in_avg,Temperature,3.3957626819610596,0.0,5,55,7
+C,Dataset1 formal 6-feature + Cl2,xgb,XGBoost,thm4_in_avg,THM4,high,shap,ph_in_avg,pH,3.074640989303589,0.0,6,55,7
+C,Dataset1 formal 6-feature + Cl2,xgb,XGBoost,thm4_in_avg,THM4,high,permutation,cl2d_in_avg,Cl2 dose,16.50635810223638,2.839863364984396,1,55,7
+C,Dataset1 formal 6-feature + Cl2,xgb,XGBoost,thm4_in_avg,THM4,high,permutation,toc_in_avg,TOC,1.831199137380232,2.0147746095089407,2,55,7
+C,Dataset1 formal 6-feature + Cl2,xgb,XGBoost,thm4_in_avg,THM4,high,permutation,ph_in_avg,pH,1.019047401956157,0.5288941343047143,3,55,7
+C,Dataset1 formal 6-feature + Cl2,xgb,XGBoost,thm4_in_avg,THM4,high,permutation,uv_in_avg,UV254,-0.6014015442489414,0.8381203933636121,4,55,7
+C,Dataset1 formal 6-feature + Cl2,xgb,XGBoost,thm4_in_avg,THM4,high,permutation,temp_in_avg,Temperature,-0.6845833112137125,0.6571666926297156,5,55,7
+C,Dataset1 formal 6-feature + Cl2,xgb,XGBoost,thm4_in_avg,THM4,high,permutation,br_in_avg,Bromide,-3.4683808120536455,1.2773446257005794,6,55,7
+C,Dataset1 formal 6-feature + Cl2,xgb,XGBoost,dbcm_in_avg,DBCM,low,shap,br_in_avg,Bromide,8.44322395324707,0.0,1,50,10
+C,Dataset1 formal 6-feature + Cl2,xgb,XGBoost,dbcm_in_avg,DBCM,low,shap,uv_in_avg,UV254,2.338470935821533,0.0,2,50,10
+C,Dataset1 formal 6-feature + Cl2,xgb,XGBoost,dbcm_in_avg,DBCM,low,shap,temp_in_avg,Temperature,1.8814339637756348,0.0,3,50,10
+C,Dataset1 formal 6-feature + Cl2,xgb,XGBoost,dbcm_in_avg,DBCM,low,shap,ph_in_avg,pH,1.6891181468963623,0.0,4,50,10
+C,Dataset1 formal 6-feature + Cl2,xgb,XGBoost,dbcm_in_avg,DBCM,low,shap,toc_in_avg,TOC,1.077696442604065,0.0,5,50,10
+C,Dataset1 formal 6-feature + Cl2,xgb,XGBoost,dbcm_in_avg,DBCM,low,shap,cl2d_in_avg,Cl2 dose,1.0216881036758423,0.0,6,50,10
+C,Dataset1 formal 6-feature + Cl2,xgb,XGBoost,dbcm_in_avg,DBCM,low,permutation,br_in_avg,Bromide,11.428312906708177,1.0050348918143486,1,50,10
+C,Dataset1 formal 6-feature + Cl2,xgb,XGBoost,dbcm_in_avg,DBCM,low,permutation,uv_in_avg,UV254,3.8922654284041527,0.8466350752325363,2,50,10
+C,Dataset1 formal 6-feature + Cl2,xgb,XGBoost,dbcm_in_avg,DBCM,low,permutation,temp_in_avg,Temperature,2.337258720505591,0.3384945111291357,3,50,10
+C,Dataset1 formal 6-feature + Cl2,xgb,XGBoost,dbcm_in_avg,DBCM,low,permutation,toc_in_avg,TOC,0.8625573876234774,0.2687209276112678,4,50,10
+C,Dataset1 formal 6-feature + Cl2,xgb,XGBoost,dbcm_in_avg,DBCM,low,permutation,cl2d_in_avg,Cl2 dose,0.49548105056203157,0.39911032010474684,5,50,10
+C,Dataset1 formal 6-feature + Cl2,xgb,XGBoost,dbcm_in_avg,DBCM,low,permutation,ph_in_avg,pH,0.28212689414724884,0.5601891608302348,6,50,10
+C,Dataset1 formal 6-feature + Cl2,xgb,XGBoost,dbcm_in_avg,DBCM,high,shap,br_in_avg,Bromide,8.235661506652832,0.0,1,55,7
+C,Dataset1 formal 6-feature + Cl2,xgb,XGBoost,dbcm_in_avg,DBCM,high,shap,temp_in_avg,Temperature,2.4106438159942627,0.0,2,55,7
+C,Dataset1 formal 6-feature + Cl2,xgb,XGBoost,dbcm_in_avg,DBCM,high,shap,cl2d_in_avg,Cl2 dose,1.54547119140625,0.0,3,55,7
+C,Dataset1 formal 6-feature + Cl2,xgb,XGBoost,dbcm_in_avg,DBCM,high,shap,uv_in_avg,UV254,1.2349811792373657,0.0,4,55,7
+C,Dataset1 formal 6-feature + Cl2,xgb,XGBoost,dbcm_in_avg,DBCM,high,shap,ph_in_avg,pH,1.1818797588348389,0.0,5,55,7
+C,Dataset1 formal 6-feature + Cl2,xgb,XGBoost,dbcm_in_avg,DBCM,high,shap,toc_in_avg,TOC,0.9760366082191467,0.0,6,55,7
+C,Dataset1 formal 6-feature + Cl2,xgb,XGBoost,dbcm_in_avg,DBCM,high,permutation,br_in_avg,Bromide,3.907711296051154,0.5111260106919466,1,55,7
+C,Dataset1 formal 6-feature + Cl2,xgb,XGBoost,dbcm_in_avg,DBCM,high,permutation,cl2d_in_avg,Cl2 dose,0.9313199797938483,0.3812090742685155,2,55,7
+C,Dataset1 formal 6-feature + Cl2,xgb,XGBoost,dbcm_in_avg,DBCM,high,permutation,temp_in_avg,Temperature,0.8235721348237183,0.5215444678753266,3,55,7
+C,Dataset1 formal 6-feature + Cl2,xgb,XGBoost,dbcm_in_avg,DBCM,high,permutation,ph_in_avg,pH,0.36616011976123714,0.15721854876225658,4,55,7
+C,Dataset1 formal 6-feature + Cl2,xgb,XGBoost,dbcm_in_avg,DBCM,high,permutation,uv_in_avg,UV254,-0.08255124103966996,0.09387251024021641,5,55,7
+C,Dataset1 formal 6-feature + Cl2,xgb,XGBoost,dbcm_in_avg,DBCM,high,permutation,toc_in_avg,TOC,-0.48746431467457396,0.24674626933962737,6,55,7
+C,Dataset1 formal 6-feature + Cl2,xgb,XGBoost,bdcm_in_avg,BDCM,low,shap,br_in_avg,Bromide,11.824493408203125,0.0,1,50,10
+C,Dataset1 formal 6-feature + Cl2,xgb,XGBoost,bdcm_in_avg,BDCM,low,shap,cl2d_in_avg,Cl2 dose,4.575719833374023,0.0,2,50,10
+C,Dataset1 formal 6-feature + Cl2,xgb,XGBoost,bdcm_in_avg,BDCM,low,shap,uv_in_avg,UV254,3.130162239074707,0.0,3,50,10
+C,Dataset1 formal 6-feature + Cl2,xgb,XGBoost,bdcm_in_avg,BDCM,low,shap,toc_in_avg,TOC,2.9029970169067383,0.0,4,50,10
+C,Dataset1 formal 6-feature + Cl2,xgb,XGBoost,bdcm_in_avg,BDCM,low,shap,ph_in_avg,pH,0.9708784222602844,0.0,5,50,10
+C,Dataset1 formal 6-feature + Cl2,xgb,XGBoost,bdcm_in_avg,BDCM,low,shap,temp_in_avg,Temperature,0.6372449994087219,0.0,6,50,10
+C,Dataset1 formal 6-feature + Cl2,xgb,XGBoost,bdcm_in_avg,BDCM,low,permutation,br_in_avg,Bromide,12.136093913097318,1.0946465660074718,1,50,10
+C,Dataset1 formal 6-feature + Cl2,xgb,XGBoost,bdcm_in_avg,BDCM,low,permutation,cl2d_in_avg,Cl2 dose,4.1226722805622185,1.1049452421623804,2,50,10
+C,Dataset1 formal 6-feature + Cl2,xgb,XGBoost,bdcm_in_avg,BDCM,low,permutation,uv_in_avg,UV254,3.126051342942793,0.8074781780679462,3,50,10
+C,Dataset1 formal 6-feature + Cl2,xgb,XGBoost,bdcm_in_avg,BDCM,low,permutation,toc_in_avg,TOC,0.8678380068439789,0.5054076039803769,4,50,10
+C,Dataset1 formal 6-feature + Cl2,xgb,XGBoost,bdcm_in_avg,BDCM,low,permutation,ph_in_avg,pH,-0.2304995077567372,0.3582699358132481,5,50,10
+C,Dataset1 formal 6-feature + Cl2,xgb,XGBoost,bdcm_in_avg,BDCM,low,permutation,temp_in_avg,Temperature,-0.27427740338902895,0.17097120684228972,6,50,10
+C,Dataset1 formal 6-feature + Cl2,xgb,XGBoost,bdcm_in_avg,BDCM,high,shap,br_in_avg,Bromide,5.690257549285889,0.0,1,55,7
+C,Dataset1 formal 6-feature + Cl2,xgb,XGBoost,bdcm_in_avg,BDCM,high,shap,cl2d_in_avg,Cl2 dose,3.4723992347717285,0.0,2,55,7
+C,Dataset1 formal 6-feature + Cl2,xgb,XGBoost,bdcm_in_avg,BDCM,high,shap,uv_in_avg,UV254,1.2823344469070435,0.0,3,55,7
+C,Dataset1 formal 6-feature + Cl2,xgb,XGBoost,bdcm_in_avg,BDCM,high,shap,toc_in_avg,TOC,0.9646350741386414,0.0,4,55,7
+C,Dataset1 formal 6-feature + Cl2,xgb,XGBoost,bdcm_in_avg,BDCM,high,shap,temp_in_avg,Temperature,0.8203733563423157,0.0,5,55,7
+C,Dataset1 formal 6-feature + Cl2,xgb,XGBoost,bdcm_in_avg,BDCM,high,shap,ph_in_avg,pH,0.6908888220787048,0.0,6,55,7
+C,Dataset1 formal 6-feature + Cl2,xgb,XGBoost,bdcm_in_avg,BDCM,high,permutation,br_in_avg,Bromide,1.631660324009129,1.0388233901046016,1,55,7
+C,Dataset1 formal 6-feature + Cl2,xgb,XGBoost,bdcm_in_avg,BDCM,high,permutation,cl2d_in_avg,Cl2 dose,1.2231575409902153,0.5392092282466397,2,55,7
+C,Dataset1 formal 6-feature + Cl2,xgb,XGBoost,bdcm_in_avg,BDCM,high,permutation,ph_in_avg,pH,0.20545590719067822,0.07757738450173876,3,55,7
+C,Dataset1 formal 6-feature + Cl2,xgb,XGBoost,bdcm_in_avg,BDCM,high,permutation,temp_in_avg,Temperature,-0.001044804367902863,0.20192811039588948,4,55,7
+C,Dataset1 formal 6-feature + Cl2,xgb,XGBoost,bdcm_in_avg,BDCM,high,permutation,uv_in_avg,UV254,-0.08601145555692984,0.17655980582243466,5,55,7
+C,Dataset1 formal 6-feature + Cl2,xgb,XGBoost,bdcm_in_avg,BDCM,high,permutation,toc_in_avg,TOC,-0.17308577265091163,0.18962496196643852,6,55,7

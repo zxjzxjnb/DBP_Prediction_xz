@@ -1,0 +1,24 @@
+[
+  {
+    "run_key": "B",
+    "run_label": "Dataset1 formal 5-feature",
+    "run_dir": "/Users/xjzou/Desktop/DBPs-prediction-by-kan-main/checkpoints/formal_dataset1_5feat_avg/20260330T235734Z",
+    "threshold_c": 1.0,
+    "n_rows_total": 514,
+    "n_tsids_total": 95,
+    "n_tsids_low": 47,
+    "n_tsids_high": 35,
+    "n_tsids_unknown": 14
+  },
+  {
+    "run_key": "C",
+    "run_label": "Dataset1 formal 6-feature + Cl2",
+    "run_dir": "/Users/xjzou/Desktop/DBPs-prediction-by-kan-main/checkpoints/formal_dataset1_6feat_cl2d_avg/20260331T130339Z",
+    "threshold_c": 1.0,
+    "n_rows_total": 514,
+    "n_tsids_total": 95,
+    "n_tsids_low": 47,
+    "n_tsids_high": 35,
+    "n_tsids_unknown": 14
+  }
+]
