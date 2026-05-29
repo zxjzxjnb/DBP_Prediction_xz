@@ -251,19 +251,35 @@ def plot_heatmap(
 ) -> None:
     labels = [feature_label(col) for col in feature_cols]
     fig, ax = plt.subplots(figsize=(8.2, 7.2))
-    im = ax.imshow(mean_abs_matrix, cmap="viridis")
+    cmap = plt.get_cmap("YlOrRd")
+    im = ax.imshow(mean_abs_matrix, cmap=cmap)
     cbar = fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
     cbar.set_label("Mean |SHAP interaction value|")
     ax.set_xticks(np.arange(len(labels)), labels=labels, rotation=35, ha="right")
     ax.set_yticks(np.arange(len(labels)), labels=labels)
+    ax.set_xticks(np.arange(-0.5, len(labels), 1), minor=True)
+    ax.set_yticks(np.arange(-0.5, len(labels), 1), minor=True)
+    ax.grid(which="minor", color="white", linestyle="-", linewidth=1.2)
+    ax.tick_params(which="minor", bottom=False, left=False)
     ax.set_title(title, fontsize=13, fontweight="bold", pad=12)
 
-    threshold = float(np.nanmax(mean_abs_matrix)) * 0.55 if mean_abs_matrix.size else 0.0
+    norm = im.norm
     for i in range(mean_abs_matrix.shape[0]):
         for j in range(mean_abs_matrix.shape[1]):
             value = mean_abs_matrix[i, j]
-            text_color = "white" if value > threshold else "black"
-            ax.text(j, i, f"{value:.2f}", ha="center", va="center", color=text_color, fontsize=8)
+            red, green, blue, _ = cmap(norm(value))
+            luminance = 0.2126 * red + 0.7152 * green + 0.0722 * blue
+            text_color = "black" if luminance > 0.58 else "white"
+            ax.text(
+                j,
+                i,
+                f"{value:.2f}",
+                ha="center",
+                va="center",
+                color=text_color,
+                fontsize=9,
+                fontweight="bold",
+            )
 
     plt.tight_layout()
     plt.savefig(save_path)
@@ -491,7 +507,7 @@ def analyze_target(
         feature_col=CL2_COL,
         color_col=BR_COL,
         title=f"{spec.label} - Cl2 dose SHAP colored by Bromide",
-        save_path=target_dir / "dependence_cl2d_colored_by_bromide.png",
+        save_path=target_dir / "dependence_cl2_by_br.png",
     )
     plot_dependence(
         x_raw_df,
@@ -507,7 +523,7 @@ def analyze_target(
         interactions,
         feature_cols,
         title=f"{spec.label} - pure Cl2 dose x Bromide interaction",
-        save_path=target_dir / "scatter_bromide_cl2d_pure_interaction.png",
+        save_path=target_dir / "interaction_2d_cl2_br.png",
     )
 
     pair_summary = build_pair_summary(
