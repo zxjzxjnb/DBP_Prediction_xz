@@ -25,7 +25,7 @@ class ImputeTransformer(BaseTransformer):
         self.fill_value = fill_value
         self.imputer = SimpleImputer(strategy=self.strategy, fill_value=self.fill_value)
 
-    def fit(self, X: pd.DataFrame, y: pd.DataFrame | None = None) -> "ImputeTransformer":
+    def fit(self, X: pd.DataFrame, y: pd.DataFrame | None = None) -> ImputeTransformer:
         del y
         columns = resolve_columns(X, self.columns, "impute.columns")
         self.columns_ = columns

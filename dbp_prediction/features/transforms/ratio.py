@@ -42,7 +42,7 @@ class RatioTransformer(BaseTransformer):
         super().__init__(pairs=pairs)
         self.pairs = _normalize_specs(list(pairs))
 
-    def fit(self, X: pd.DataFrame, y: pd.DataFrame | None = None) -> "RatioTransformer":
+    def fit(self, X: pd.DataFrame, y: pd.DataFrame | None = None) -> RatioTransformer:
         del y
         validated: list[tuple[str, str, str]] = []
         for left, right, name in self.pairs:

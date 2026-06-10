@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import numpy as np
 import pandas as pd
 from sklearn.preprocessing import StandardScaler
 
@@ -13,9 +12,6 @@ from dbp_prediction.features.base import (
     signed_log1p,
 )
 from dbp_prediction.features.registry import register_transform
-
-
-
 
 
 @register_transform("target_transform")
@@ -43,7 +39,7 @@ class TargetTransformTransformer(BaseTransformer):
         self,
         X: pd.DataFrame,
         y: pd.DataFrame | None = None,
-    ) -> "TargetTransformTransformer":
+    ) -> TargetTransformTransformer:
         del X
         if y is None:
             raise ValueError("'target_transform' requires target columns")

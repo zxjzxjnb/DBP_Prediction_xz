@@ -3,11 +3,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+
 from dbp_prediction.settings import (
-    CHECKPOINT_DIR,
-    DATA_DIR,
     DEFAULT_BATCH_SIZE,
-    DEFAULT_DATA_PATH,
     DEFAULT_FOLDS,
     DEFAULT_LR,
     DEFAULT_MAX_EPOCHS,
@@ -17,12 +15,6 @@ from dbp_prediction.settings import (
     DEFAULT_TRIALS,
     DEFAULT_VAL_FRACTION,
     DEFAULT_WEIGHT_DECAY,
-    PACKAGE_DATA_DIR,
-    PACKAGED_DATA_PATH,
-    PROJECT_ROOT,
-    RESULTS_DIR,
-    first_existing_path,
-    resolve_artifact_path,
 )
 
 # ── Column definitions ──────────────────────────────────────────────────────

@@ -3,8 +3,8 @@
 from dbp_prediction.schemas.dataset import DatasetSchema, SplitConfig
 from dbp_prediction.schemas.experiment import (
     ExperimentConfig,
-    FeatureStepConfig,
     FeaturesConfig,
+    FeatureStepConfig,
     ModelConfig,
     ModelTuningOverrides,
     OutputConfig,

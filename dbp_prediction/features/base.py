@@ -8,7 +8,6 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-
 # ── Shared math helpers ─────────────────────────────────────────────────────
 
 
@@ -52,7 +51,7 @@ class BaseTransformer(ABC):
     def __init__(self, **params: Any) -> None:
         self.params = dict(params)
 
-    def fit(self, X: pd.DataFrame, y: pd.DataFrame | None = None) -> "BaseTransformer":
+    def fit(self, X: pd.DataFrame, y: pd.DataFrame | None = None) -> BaseTransformer:
         """Learn parameters from train data."""
         del X, y
         return self

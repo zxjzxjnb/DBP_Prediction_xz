@@ -21,7 +21,7 @@ class FeaturePipeline:
         self._is_fitted = False
 
     @classmethod
-    def from_specs(cls, steps: list[Any] | None) -> "FeaturePipeline":
+    def from_specs(cls, steps: list[Any] | None) -> FeaturePipeline:
         """Build a pipeline from schema step objects or plain mappings."""
         transformers: list[BaseTransformer] = []
         for step in steps or []:
@@ -48,7 +48,7 @@ class FeaturePipeline:
         self,
         X: pd.DataFrame,
         y: pd.DataFrame | None = None,
-    ) -> "FeaturePipeline":
+    ) -> FeaturePipeline:
         """Fit all transforms on train data in sequence."""
         current_X = X.copy()
         current_y = None if y is None else y.copy()

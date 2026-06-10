@@ -104,7 +104,7 @@ class TaskConfig:
         self.targets = _ensure_targets(self.targets, "task.targets")
 
     @classmethod
-    def from_dict(cls, raw: dict[str, Any] | None) -> "TaskConfig":
+    def from_dict(cls, raw: dict[str, Any] | None) -> TaskConfig:
         raw = _ensure_mapping(raw, "task")
         return cls(
             strategy=str(raw.get("strategy", "per_target")),
@@ -126,7 +126,7 @@ class FeatureStepConfig:
         create_transform(self.name, self.params)
 
     @classmethod
-    def from_dict(cls, raw: dict[str, Any]) -> "FeatureStepConfig":
+    def from_dict(cls, raw: dict[str, Any]) -> FeatureStepConfig:
         raw = _ensure_mapping(raw, "features.steps[]")
         return cls(
             name=raw.get("name"),
@@ -141,7 +141,7 @@ class FeaturesConfig:
     steps: list[FeatureStepConfig] = field(default_factory=list)
 
     @classmethod
-    def from_dict(cls, raw: dict[str, Any] | None) -> "FeaturesConfig":
+    def from_dict(cls, raw: dict[str, Any] | None) -> FeaturesConfig:
         raw = _ensure_mapping(raw, "features")
         steps = raw.get("steps", [])
         if not isinstance(steps, list):
@@ -162,7 +162,7 @@ class ModelTuningOverrides:
     stability_penalty: float | None = None
 
     @classmethod
-    def from_dict(cls, raw: dict[str, Any] | None) -> "ModelTuningOverrides | None":
+    def from_dict(cls, raw: dict[str, Any] | None) -> ModelTuningOverrides | None:
         if raw is None:
             return None
         raw = _ensure_mapping(raw, "models[].tuning")
@@ -196,7 +196,7 @@ class ModelConfig:
             raise ValueError("'models[].search_space' must be a mapping")
 
     @classmethod
-    def from_dict(cls, raw: dict[str, Any]) -> "ModelConfig":
+    def from_dict(cls, raw: dict[str, Any]) -> ModelConfig:
         raw = _ensure_mapping(raw, "models[]")
         search_space_raw = raw.get("search_space")
         return cls(
@@ -226,7 +226,7 @@ class TrainingConfig:
     max_grad_norm: float = 5.0
 
     @classmethod
-    def from_dict(cls, raw: dict[str, Any] | None) -> "TrainingConfig":
+    def from_dict(cls, raw: dict[str, Any] | None) -> TrainingConfig:
         raw = _ensure_mapping(raw, "training")
         return cls(
             seed=int(raw.get("seed", DEFAULT_SEED)),
@@ -254,7 +254,7 @@ class TuningConfig:
     scout: bool = False
 
     @classmethod
-    def from_dict(cls, raw: dict[str, Any] | None) -> "TuningConfig":
+    def from_dict(cls, raw: dict[str, Any] | None) -> TuningConfig:
         raw = _ensure_mapping(raw, "tuning")
         return cls(
             enabled=bool(raw.get("enabled", False)),
@@ -278,7 +278,7 @@ class OutputConfig:
             self.dir = Path(self.dir).expanduser()
 
     @classmethod
-    def from_dict(cls, raw: dict[str, Any] | None) -> "OutputConfig":
+    def from_dict(cls, raw: dict[str, Any] | None) -> OutputConfig:
         raw = _ensure_mapping(raw, "outputs")
         directory = raw.get("dir")
         return cls(
@@ -329,7 +329,7 @@ class ExperimentConfig:
             )
 
     @classmethod
-    def from_dict(cls, raw: dict[str, Any]) -> "ExperimentConfig":
+    def from_dict(cls, raw: dict[str, Any]) -> ExperimentConfig:
         if not isinstance(raw, dict):
             raise ValueError("Experiment config must be a mapping")
 
