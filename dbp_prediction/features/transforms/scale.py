@@ -20,7 +20,7 @@ class ScaleTransformer(BaseTransformer):
         self.columns = None if columns is None else [str(column) for column in columns]
         self.scaler = StandardScaler()
 
-    def fit(self, X: pd.DataFrame, y: pd.DataFrame | None = None) -> "ScaleTransformer":
+    def fit(self, X: pd.DataFrame, y: pd.DataFrame | None = None) -> ScaleTransformer:
         del y
         columns = resolve_columns(X, self.columns, "scale.columns")
         self.columns_ = columns

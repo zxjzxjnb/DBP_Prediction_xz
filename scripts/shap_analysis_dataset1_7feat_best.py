@@ -14,7 +14,13 @@ Outputs:
 
 Usage:
     python scripts/shap_analysis_dataset1_7feat_best.py
+    python scripts/shap_analysis_dataset1_7feat_best.py \
+      --thm4-run-dir checkpoints/formal_dataset1_7feat_cl2d_contact_time_thm4_avg/<run_id> \
+      --bdcm-run-dir checkpoints/formal_dataset1_7feat_cl2d_contact_time_bdcm_avg/<run_id> \
+      --dbcm-run-dir checkpoints/formal_dataset1_7feat_cl2d_contact_time_dbcm_avg/<run_id>
 """
+
+# ruff: noqa: E402
 
 from __future__ import annotations
 
@@ -47,7 +53,6 @@ import pandas as pd
 import shap
 import torch
 
-
 PROJECT = Path(__file__).resolve().parents[1]
 OUTPUT_DIR = PROJECT / "results" / "shap_analysis_dataset1_7feat_best"
 
@@ -79,26 +84,11 @@ class BestSpec:
     model_name: str
 
 
-DEFAULT_SPECS = [
-    BestSpec(
-        target="thm4_in_avg",
-        label="THM4",
-        run_dir=PROJECT / "checkpoints" / "formal_dataset1_7feat_cl2d_contact_time_thm4_avg" / "20260331T214748Z",
-        model_name="rf",
-    ),
-    BestSpec(
-        target="bdcm_in_avg",
-        label="BDCM",
-        run_dir=PROJECT / "checkpoints" / "formal_dataset1_7feat_cl2d_contact_time_bdcm_avg" / "20260331T214748Z",
-        model_name="rf",
-    ),
-    BestSpec(
-        target="dbcm_in_avg",
-        label="DBCM",
-        run_dir=PROJECT / "checkpoints" / "formal_dataset1_7feat_cl2d_contact_time_dbcm_avg" / "20260331T225500Z",
-        model_name="mlp",
-    ),
-]
+DEFAULT_RUN_PARENTS = {
+    "thm4": PROJECT / "checkpoints" / "formal_dataset1_7feat_cl2d_contact_time_thm4_avg",
+    "bdcm": PROJECT / "checkpoints" / "formal_dataset1_7feat_cl2d_contact_time_bdcm_avg",
+    "dbcm": PROJECT / "checkpoints" / "formal_dataset1_7feat_cl2d_contact_time_dbcm_avg",
+}
 
 
 def parse_args() -> argparse.Namespace:
@@ -121,7 +111,72 @@ def parse_args() -> argparse.Namespace:
         default=30,
         help="Number of kmeans centroids used as KernelExplainer background.",
     )
+    parser.add_argument(
+        "--thm4-run-dir",
+        type=str,
+        default=None,
+        help="Run directory for the THM4 formal model. Defaults to the latest run in the THM4 checkpoint directory.",
+    )
+    parser.add_argument(
+        "--bdcm-run-dir",
+        type=str,
+        default=None,
+        help="Run directory for the BDCM formal model. Defaults to the latest run in the BDCM checkpoint directory.",
+    )
+    parser.add_argument(
+        "--dbcm-run-dir",
+        type=str,
+        default=None,
+        help="Run directory for the DBCM formal model. Defaults to the latest run in the DBCM checkpoint directory.",
+    )
     return parser.parse_args()
+
+
+def latest_run_dir(parent: Path) -> Path:
+    if not parent.exists():
+        raise FileNotFoundError(
+            f"No checkpoint directory found at {parent}. Run the formal experiment first "
+            "or pass an explicit --*-run-dir value."
+        )
+    candidates = sorted(path for path in parent.iterdir() if path.is_dir())
+    if not candidates:
+        raise FileNotFoundError(
+            f"No run directories found under {parent}. Run the formal experiment first "
+            "or pass an explicit --*-run-dir value."
+        )
+    return candidates[-1]
+
+
+def resolve_run_dir(raw_path: str | None, default_parent: Path) -> Path:
+    if raw_path:
+        path = Path(raw_path).expanduser()
+        if not path.is_absolute():
+            path = PROJECT / path
+        return path.resolve()
+    return latest_run_dir(default_parent)
+
+
+def build_specs(args: argparse.Namespace) -> list[BestSpec]:
+    return [
+        BestSpec(
+            target="thm4_in_avg",
+            label="THM4",
+            run_dir=resolve_run_dir(args.thm4_run_dir, DEFAULT_RUN_PARENTS["thm4"]),
+            model_name="rf",
+        ),
+        BestSpec(
+            target="bdcm_in_avg",
+            label="BDCM",
+            run_dir=resolve_run_dir(args.bdcm_run_dir, DEFAULT_RUN_PARENTS["bdcm"]),
+            model_name="rf",
+        ),
+        BestSpec(
+            target="dbcm_in_avg",
+            label="DBCM",
+            run_dir=resolve_run_dir(args.dbcm_run_dir, DEFAULT_RUN_PARENTS["dbcm"]),
+            model_name="mlp",
+        ),
+    ]
 
 
 def feature_label(name: str) -> str:
@@ -223,9 +278,7 @@ def compute_shap_nn(
         n_background = min(background_k, len(x_scaled))
         background = shap.kmeans(x_scaled, n_background)
         explainer = shap.KernelExplainer(predict_fn, background)
-        shap_values = np.asarray(
-            explainer.shap_values(x_scaled, nsamples=nsamples, silent=True)
-        )
+        shap_values = np.asarray(explainer.shap_values(x_scaled, nsamples=nsamples, silent=True))
         shap_values_all.append(shap_values)
         print(f"    Fold {fold_idx}/{len(members)} complete")
     return np.mean(np.stack(shap_values_all, axis=0), axis=0)
@@ -336,8 +389,13 @@ def plot_dependence_top3(
         plt.close("all")
 
 
-def plot_cross_target_importance(summary_df: pd.DataFrame, feature_cols: list[str], save_path: Path) -> None:
-    targets = [spec.target for spec in DEFAULT_SPECS]
+def plot_cross_target_importance(
+    summary_df: pd.DataFrame,
+    feature_cols: list[str],
+    specs: list[BestSpec],
+    save_path: Path,
+) -> None:
+    targets = [spec.target for spec in specs]
     width = 0.25
     x = np.arange(len(feature_cols))
     colors = ["#4E79A7", "#59A14F", "#E15759"]
@@ -359,7 +417,9 @@ def plot_cross_target_importance(summary_df: pd.DataFrame, feature_cols: list[st
         ha="right",
     )
     plt.ylabel("Mean |SHAP value|")
-    plt.title("Best 7-feature model per target - cross-target importance", fontsize=13, fontweight="bold")
+    plt.title(
+        "Best 7-feature model per target - cross-target importance", fontsize=13, fontweight="bold"
+    )
     plt.legend()
     plt.tight_layout()
     plt.savefig(save_path)
@@ -380,7 +440,6 @@ def analyze_target(
 
     checkpoint = load_checkpoint(checkpoint_path_for(spec.run_dir, spec.model_name))
     feature_cols = checkpoint["feature_cols"]
-    model_family = checkpoint["model_family"]
     df = load_dataset_for_run(spec.run_dir)
     test_subset = filter_test_rows(df, feature_cols, spec.target, max_test_samples)
     x_raw_df = test_subset[feature_cols].copy()
@@ -444,15 +503,13 @@ def write_summary_outputs(summary_rows: list[dict[str, Any]]) -> pd.DataFrame:
     summary_df = pd.DataFrame(summary_rows).sort_values(["target", "rank"])
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     summary_df.to_csv(OUTPUT_DIR / "mean_abs_shap_summary.csv", index=False)
-    (OUTPUT_DIR / "mean_abs_shap_summary.json").write_text(
-        json.dumps(summary_rows, indent=2)
-    )
+    (OUTPUT_DIR / "mean_abs_shap_summary.json").write_text(json.dumps(summary_rows, indent=2))
     return summary_df
 
 
-def write_top_feature_report(summary_df: pd.DataFrame) -> None:
+def write_top_feature_report(summary_df: pd.DataFrame, specs: list[BestSpec]) -> None:
     lines = ["# Dataset1 7-feature SHAP Summary", ""]
-    for spec in DEFAULT_SPECS:
+    for spec in specs:
         subset = summary_df[summary_df["target"] == spec.target]
         lines.append(f"## {spec.label}")
         lines.append("")
@@ -460,8 +517,7 @@ def write_top_feature_report(summary_df: pd.DataFrame) -> None:
         lines.append(f"- Run dir: `{spec.run_dir}`")
         top3 = subset.head(3)
         joined = ", ".join(
-            f"{row.feature_label} ({row.mean_abs_shap:.4f})"
-            for row in top3.itertuples()
+            f"{row.feature_label} ({row.mean_abs_shap:.4f})" for row in top3.itertuples()
         )
         lines.append(f"- Top 3: {joined}")
         lines.append("")
@@ -470,12 +526,13 @@ def write_top_feature_report(summary_df: pd.DataFrame) -> None:
 
 def main() -> None:
     args = parse_args()
+    specs = build_specs(args)
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
     summary_rows: list[dict[str, Any]] = []
     shared_feature_cols: list[str] | None = None
 
-    for spec in DEFAULT_SPECS:
+    for spec in specs:
         summary_rows.extend(
             analyze_target(
                 spec=spec,
@@ -489,11 +546,12 @@ def main() -> None:
             shared_feature_cols = ckpt["feature_cols"]
 
     summary_df = write_summary_outputs(summary_rows)
-    write_top_feature_report(summary_df)
+    write_top_feature_report(summary_df, specs)
     if shared_feature_cols is not None:
         plot_cross_target_importance(
             summary_df=summary_df,
             feature_cols=shared_feature_cols,
+            specs=specs,
             save_path=OUTPUT_DIR / "cross_target_importance.png",
         )
 

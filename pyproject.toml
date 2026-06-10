@@ -36,6 +36,9 @@ dev = [
 ui = [
     "streamlit>=1.40",
 ]
+analysis = [
+    "shap>=0.45",
+]
 
 [project.scripts]
 dbp = "dbp_prediction.cli.main:main"

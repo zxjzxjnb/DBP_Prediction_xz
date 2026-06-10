@@ -10,7 +10,7 @@ from typing import Any
 import pandas as pd
 import yaml
 
-from dbp_prediction.config import FEATURE_COLS, SPLIT_COL, TARGET_COLS, TEST_LABEL, TRAIN_LABEL
+from dbp_prediction.config import FEATURE_COLS, SPLIT_COL, TARGET_COLS
 from dbp_prediction.datasets.loaders import READERS, resolve_file_format
 from dbp_prediction.features import TRANSFORM_REGISTRY
 from dbp_prediction.models import MODEL_REGISTRY, get_model_adapter

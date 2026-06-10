@@ -5,7 +5,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from dbp_prediction.schemas import DatasetSchema, ExperimentConfig, ModelConfig, load_experiment_config
+from dbp_prediction.schemas import (
+    DatasetSchema,
+    ExperimentConfig,
+    ModelConfig,
+    load_experiment_config,
+)
 
 LEGACY_SUPPORTED_SPLITS = {"predefined", "column"}
 

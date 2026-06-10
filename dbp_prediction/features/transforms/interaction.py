@@ -34,7 +34,7 @@ class InteractionTransformer(BaseTransformer):
         self.columns = None if columns is None else [str(column) for column in columns]
         self.pairs = None if pairs is None else _normalize_pairs(pairs)
 
-    def fit(self, X: pd.DataFrame, y: pd.DataFrame | None = None) -> "InteractionTransformer":
+    def fit(self, X: pd.DataFrame, y: pd.DataFrame | None = None) -> InteractionTransformer:
         del y
         if self.pairs is not None:
             pairs = []

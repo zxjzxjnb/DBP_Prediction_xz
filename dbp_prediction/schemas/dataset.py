@@ -64,7 +64,7 @@ class SplitConfig:
             raise ValueError("Split strategy 'predefined' requires a split column")
 
     @classmethod
-    def from_dict(cls, raw: dict[str, Any] | None) -> "SplitConfig":
+    def from_dict(cls, raw: dict[str, Any] | None) -> SplitConfig:
         raw = raw or {}
         if not isinstance(raw, dict):
             raise ValueError("'dataset.split' must be a mapping")
@@ -119,7 +119,7 @@ class DatasetSchema:
             raise ValueError("'dataset.reader_options' must be a mapping")
 
     @classmethod
-    def from_dict(cls, raw: dict[str, Any]) -> "DatasetSchema":
+    def from_dict(cls, raw: dict[str, Any]) -> DatasetSchema:
         if not isinstance(raw, dict):
             raise ValueError("'dataset' must be a mapping")
 

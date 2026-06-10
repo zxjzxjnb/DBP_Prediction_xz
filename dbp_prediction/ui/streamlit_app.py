@@ -18,11 +18,10 @@ from dbp_prediction.ui.configurator import (
     build_model_entry,
     default_dataset_path,
     default_feature_columns,
-    default_model_params,
     default_search_form_state,
     default_split_column,
     default_target_columns,
-    default_training_params,
+    estimate_training_load,
     get_model_field_specs,
     get_model_label,
     get_model_search_space,
@@ -35,7 +34,6 @@ from dbp_prediction.ui.configurator import (
     persist_uploaded_dataset,
     preview_dataset,
     render_config_preview,
-    estimate_training_load,
 )
 from dbp_prediction.ui.runtime import execute_payload
 

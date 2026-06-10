@@ -11,14 +11,12 @@ from typing import Any
 
 from dbp_prediction.artifacts import ArtifactStore
 from dbp_prediction.datasets import export_predictions, load_dataset
-from dbp_prediction.engine._data_helpers import dataset_payload
 from dbp_prediction.engine.evaluator import build_model_evaluation, summarize_model_comparison
 from dbp_prediction.engine.legacy_trainer import (
     LegacyTrainingRequest,
     LegacyTrainingResult,
     run_legacy_training_job,
 )
-from dbp_prediction.features import FeaturePipeline
 from dbp_prediction.models import get_model_adapter
 from dbp_prediction.schemas import ExperimentConfig, load_experiment_config
 from dbp_prediction.settings import RESULTS_DIR
@@ -83,7 +81,7 @@ class ExperimentRunner:
         )
 
     @classmethod
-    def from_path(cls, config_path: str | Path) -> "ExperimentRunner":
+    def from_path(cls, config_path: str | Path) -> ExperimentRunner:
         config = load_experiment_config(config_path)
         return cls(config=config, config_path=config.source_path)
 

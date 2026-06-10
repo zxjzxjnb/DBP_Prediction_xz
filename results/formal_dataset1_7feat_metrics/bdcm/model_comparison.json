@@ -1,0 +1,73 @@
+{
+  "best_by_macro_rmse": "rf",
+  "models": {
+    "kan": {
+      "label": "kan",
+      "macro_test_metrics": {
+        "mae": 6.503199326092341,
+        "r2": 0.8201541701494321,
+        "rmse": 9.02810754554901
+      },
+      "model_family": "kan",
+      "paradigm": "per_target",
+      "target_metrics": {
+        "bdcm_in_avg": {
+          "mae": 6.503199326092341,
+          "r2": 0.8201541701494321,
+          "rmse": 9.02810754554901
+        }
+      }
+    },
+    "mlp": {
+      "label": "mlp",
+      "macro_test_metrics": {
+        "mae": 8.048049317769847,
+        "r2": 0.7800609687107145,
+        "rmse": 9.983841823699093
+      },
+      "model_family": "mlp",
+      "paradigm": "per_target",
+      "target_metrics": {
+        "bdcm_in_avg": {
+          "mae": 8.048049317769847,
+          "r2": 0.7800609687107145,
+          "rmse": 9.983841823699093
+        }
+      }
+    },
+    "rf": {
+      "label": "rf",
+      "macro_test_metrics": {
+        "mae": 6.320620536496523,
+        "r2": 0.8431847369190071,
+        "rmse": 8.430254842049152
+      },
+      "model_family": "random_forest",
+      "paradigm": "per_target",
+      "target_metrics": {
+        "bdcm_in_avg": {
+          "mae": 6.320620536496523,
+          "r2": 0.8431847369190071,
+          "rmse": 8.430254842049152
+        }
+      }
+    },
+    "xgb": {
+      "label": "xgb",
+      "macro_test_metrics": {
+        "mae": 6.429342855971377,
+        "r2": 0.8070805149911867,
+        "rmse": 9.350494622217498
+      },
+      "model_family": "xgboost",
+      "paradigm": "per_target",
+      "target_metrics": {
+        "bdcm_in_avg": {
+          "mae": 6.429342855971377,
+          "r2": 0.8070805149911867,
+          "rmse": 9.350494622217498
+        }
+      }
+    }
+  }
+}

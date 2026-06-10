@@ -11,7 +11,12 @@ import torch
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_squared_error
 
-from dbp_prediction.models.base import ModelAdapter, ModelInput, TrainedModelArtifact, register_model_adapter
+from dbp_prediction.models.base import (
+    ModelAdapter,
+    ModelInput,
+    TrainedModelArtifact,
+    register_model_adapter,
+)
 
 
 def _as_numpy(values: torch.Tensor | np.ndarray) -> np.ndarray:

@@ -14,6 +14,10 @@ Outputs:
 
 Usage:
     python scripts/shap_interaction_dataset1.py
+    python scripts/shap_interaction_dataset1.py \
+      --thm4-run-dir checkpoints/formal_dataset1_7feat_cl2d_contact_time_thm4_avg/<run_id> \
+      --bdcm-run-dir checkpoints/formal_dataset1_7feat_cl2d_contact_time_bdcm_avg/<run_id> \
+      --dbcm-run-dir checkpoints/formal_dataset1_7feat_cl2d_contact_time_dbcm_avg/<run_id>
 """
 
 # ruff: noqa: E402, I001
@@ -89,26 +93,11 @@ class InteractionSpec:
     model_name: str | None
 
 
-DEFAULT_SPECS = [
-    InteractionSpec(
-        target="thm4_in_avg",
-        label="THM4",
-        run_dir=PROJECT / "checkpoints" / "formal_dataset1_7feat_cl2d_contact_time_thm4_avg" / "20260331T214748Z",
-        model_name="rf",
-    ),
-    InteractionSpec(
-        target="bdcm_in_avg",
-        label="BDCM",
-        run_dir=PROJECT / "checkpoints" / "formal_dataset1_7feat_cl2d_contact_time_bdcm_avg" / "20260331T214748Z",
-        model_name="rf",
-    ),
-    InteractionSpec(
-        target="dbcm_in_avg",
-        label="DBCM",
-        run_dir=PROJECT / "checkpoints" / "formal_dataset1_7feat_cl2d_contact_time_dbcm_avg" / "20260331T225500Z",
-        model_name=None,
-    ),
-]
+DEFAULT_RUN_PARENTS = {
+    "thm4": PROJECT / "checkpoints" / "formal_dataset1_7feat_cl2d_contact_time_thm4_avg",
+    "bdcm": PROJECT / "checkpoints" / "formal_dataset1_7feat_cl2d_contact_time_bdcm_avg",
+    "dbcm": PROJECT / "checkpoints" / "formal_dataset1_7feat_cl2d_contact_time_dbcm_avg",
+}
 
 
 def parse_args() -> argparse.Namespace:
@@ -125,7 +114,72 @@ def parse_args() -> argparse.Namespace:
         default=21,
         help="Number of ranked off-diagonal feature pairs to include in each per-target CSV.",
     )
+    parser.add_argument(
+        "--thm4-run-dir",
+        type=str,
+        default=None,
+        help="Run directory for the THM4 formal model. Defaults to the latest run in the THM4 checkpoint directory.",
+    )
+    parser.add_argument(
+        "--bdcm-run-dir",
+        type=str,
+        default=None,
+        help="Run directory for the BDCM formal model. Defaults to the latest run in the BDCM checkpoint directory.",
+    )
+    parser.add_argument(
+        "--dbcm-run-dir",
+        type=str,
+        default=None,
+        help="Run directory for the DBCM formal model. Defaults to the latest run in the DBCM checkpoint directory.",
+    )
     return parser.parse_args()
+
+
+def latest_run_dir(parent: Path) -> Path:
+    if not parent.exists():
+        raise FileNotFoundError(
+            f"No checkpoint directory found at {parent}. Run the formal experiment first "
+            "or pass an explicit --*-run-dir value."
+        )
+    candidates = sorted(path for path in parent.iterdir() if path.is_dir())
+    if not candidates:
+        raise FileNotFoundError(
+            f"No run directories found under {parent}. Run the formal experiment first "
+            "or pass an explicit --*-run-dir value."
+        )
+    return candidates[-1]
+
+
+def resolve_run_dir(raw_path: str | None, default_parent: Path) -> Path:
+    if raw_path:
+        path = Path(raw_path).expanduser()
+        if not path.is_absolute():
+            path = PROJECT / path
+        return path.resolve()
+    return latest_run_dir(default_parent)
+
+
+def build_specs(args: argparse.Namespace) -> list[InteractionSpec]:
+    return [
+        InteractionSpec(
+            target="thm4_in_avg",
+            label="THM4",
+            run_dir=resolve_run_dir(args.thm4_run_dir, DEFAULT_RUN_PARENTS["thm4"]),
+            model_name="rf",
+        ),
+        InteractionSpec(
+            target="bdcm_in_avg",
+            label="BDCM",
+            run_dir=resolve_run_dir(args.bdcm_run_dir, DEFAULT_RUN_PARENTS["bdcm"]),
+            model_name="rf",
+        ),
+        InteractionSpec(
+            target="dbcm_in_avg",
+            label="DBCM",
+            run_dir=resolve_run_dir(args.dbcm_run_dir, DEFAULT_RUN_PARENTS["dbcm"]),
+            model_name=None,
+        ),
+    ]
 
 
 def feature_label(name: str) -> str:
@@ -210,9 +264,7 @@ def compute_tree_interactions(members: list[dict[str, Any]], x_raw: np.ndarray) 
         x_scaled = member["scaler_x"].transform(x_raw)
         estimator = member["model_state"]["estimator"]
         explainer = shap.TreeExplainer(estimator)
-        interactions = normalize_interaction_values(
-            explainer.shap_interaction_values(x_scaled)
-        )
+        interactions = normalize_interaction_values(explainer.shap_interaction_values(x_scaled))
         interactions_all.append(interactions)
         print(f"    Fold {fold_idx}/{len(members)} complete")
     return np.mean(np.stack(interactions_all, axis=0), axis=0)
@@ -366,11 +418,7 @@ def plot_cl2_br_interaction_scatter(
     br_idx = feature_cols.index(BR_COL)
     pure_interaction = pure_pair_interaction(interactions, cl2_idx, br_idx)
     abs_limit = float(np.nanmax(np.abs(pure_interaction))) if pure_interaction.size else 0.0
-    norm = (
-        None
-        if abs_limit == 0.0
-        else TwoSlopeNorm(vmin=-abs_limit, vcenter=0.0, vmax=abs_limit)
-    )
+    norm = None if abs_limit == 0.0 else TwoSlopeNorm(vmin=-abs_limit, vcenter=0.0, vmax=abs_limit)
 
     fig, ax = plt.subplots(figsize=(6.6, 5.2))
     scatter = ax.scatter(
@@ -475,7 +523,10 @@ def analyze_target(
     target_dir = OUTPUT_DIR / spec.target
     target_dir.mkdir(parents=True, exist_ok=True)
     np.save(target_dir / "shap_interaction_values.npy", interactions)
-    np.save(target_dir / "shap_values_from_interactions.npy", shap_values_from_interactions(interactions))
+    np.save(
+        target_dir / "shap_values_from_interactions.npy",
+        shap_values_from_interactions(interactions),
+    )
 
     model_label = TREE_MODEL_LABELS[model_name]
     mean_abs_matrix = symmetric_mean_abs(interactions)
@@ -541,6 +592,7 @@ def analyze_target(
 
 def main() -> None:
     args = parse_args()
+    specs = build_specs(args)
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
     summaries = [
@@ -549,7 +601,7 @@ def main() -> None:
             max_test_samples=args.max_test_samples,
             top_pairs=args.top_pairs,
         )
-        for spec in DEFAULT_SPECS
+        for spec in specs
     ]
     combined = pd.concat(summaries, axis=0, ignore_index=True)
     combined.to_csv(OUTPUT_DIR / "top_interacting_pairs_summary.csv", index=False)

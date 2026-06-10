@@ -19,7 +19,7 @@ class PolynomialTransformer(BaseTransformer):
         self.columns = None if columns is None else [str(column) for column in columns]
         self.degree = int(degree)
 
-    def fit(self, X: pd.DataFrame, y: pd.DataFrame | None = None) -> "PolynomialTransformer":
+    def fit(self, X: pd.DataFrame, y: pd.DataFrame | None = None) -> PolynomialTransformer:
         del y
         self.columns_ = resolve_columns(X, self.columns, "polynomial.columns")
         return self
