@@ -4,6 +4,7 @@
 
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![CI](https://github.com/zxjzxjnb/DBP_Prediction_xz/actions/workflows/ci.yml/badge.svg)](https://github.com/zxjzxjnb/DBP_Prediction_xz/actions/workflows/ci.yml)
 
 ## Overview
 
@@ -28,6 +29,12 @@ The project predicts three DBP targets:
 | BDCM | `bdcm_in_avg` | Bromodichloromethane |
 
 The repository also includes a smaller 175-row packaged benchmark for lightweight examples and compatibility with earlier KAN experiments.
+
+## Visual Outputs
+
+![Cross-target SHAP importance for the 7-feature U.S. Dataset workflow](results/shap_analysis_dataset1_7feat_best/cross_target_importance.png)
+
+![Streamlit experiment configurator UI](docs/assets/streamlit-ui.png)
 
 ## What This Project Includes
 
@@ -100,7 +107,8 @@ pip install -e ".[ui]"
 Optional interpretation/reporting dependencies:
 
 ```bash
-pip install shap fpdf2 pillow
+pip install -e ".[analysis]"
+pip install fpdf2 pillow
 ```
 
 ## Quick Start
@@ -180,6 +188,12 @@ time_sds_avg
 
 The U.S. Dataset contains missing values, so formal configs usually include a `drop_missing` feature step for complete-case evaluation.
 
+Known provenance and licensing boundary:
+
+- This repository tracks the processed CSV used by the formal experiments, including the predefined train/test split.
+- The current repository files do not contain a primary publication, agency source, or standalone data license for the underlying U.S. Dataset measurements.
+- The MIT license in this repository covers the code unless a data source states otherwise. Before using the U.S. Dataset outside this research repo, add the original data citation/license or replace it with a documented public release.
+
 ### Packaged Benchmark
 
 Path:
@@ -197,6 +211,11 @@ Summary:
 | Predefined test rows | 34 |
 
 This smaller dataset is useful for quick examples and legacy comparisons.
+
+Known provenance and licensing boundary:
+
+- The packaged benchmark is tracked in `data/DBP_dataset_DWTP_B.csv` and mirrored inside the package at `dbp_prediction/_data/DBP_dataset_DWTP_B.csv`.
+- The repository-level MIT license covers the code. Confirm the original measurement source and reuse terms before treating this CSV as independently licensed public data.
 
 ## Experiment Configs
 
@@ -315,6 +334,14 @@ The table below summarizes the strongest documented formal 7-feature U.S. Datase
 | BDCM | Random Forest | 8.430 | 6.321 | 0.843 | Bromide, chlorine dose, UV254 |
 | DBCM | MLP | 4.924 | 3.338 | 0.713 | Bromide, UV254, chlorine dose |
 
+Tracked metric artifacts behind this table:
+
+```text
+results/formal_dataset1_7feat_metrics/thm4/model_comparison.json
+results/formal_dataset1_7feat_metrics/bdcm/model_comparison.json
+results/formal_dataset1_7feat_metrics/dbcm/model_comparison.json
+```
+
 Reference config files:
 
 ```text
@@ -323,24 +350,30 @@ experiments/formal_dataset1_7feat_cl2d_contact_time_bdcm_avg.yaml
 experiments/formal_dataset1_7feat_cl2d_contact_time_dbcm_avg.yaml
 ```
 
-The corresponding `metrics/model_comparison.json` files are generated under `checkpoints/` when the configs are run. Because `checkpoints/` is ignored by Git, a fresh GitHub clone will not include the historical model-comparison JSON files or trained model checkpoints.
+Fresh runs generate new `metrics/model_comparison.json` files under `checkpoints/`. The historical formal-run metric JSON files used in the table above are also copied under `results/formal_dataset1_7feat_metrics/` so a fresh clone can audit the reported numbers without requiring local checkpoint artifacts. Trained model checkpoints remain under ignored `checkpoints/` because they can be large.
 
 ## Interpretation and Reports
 
 Precomputed report and interpretation outputs are tracked in `results/` and `output/`. To rerun the scripts below from a fresh clone, first regenerate the required formal model checkpoints by running the formal experiment configs.
 
-Note: `scripts/shap_analysis_dataset1_7feat_best.py` hardcodes the checkpoint `run_dir` timestamps (e.g. `20260331T214748Z`). After regenerating checkpoints, update those timestamp paths in the script to match the new run directories you produced.
-
 SHAP analysis for the best formal 7-feature models:
 
 ```bash
-python scripts/shap_analysis_dataset1_7feat_best.py
+python scripts/shap_analysis_dataset1_7feat_best.py \
+  --thm4-run-dir checkpoints/formal_dataset1_7feat_cl2d_contact_time_thm4_avg/<run_id> \
+  --bdcm-run-dir checkpoints/formal_dataset1_7feat_cl2d_contact_time_bdcm_avg/<run_id> \
+  --dbcm-run-dir checkpoints/formal_dataset1_7feat_cl2d_contact_time_dbcm_avg/<run_id>
 ```
+
+If the run-dir arguments are omitted, the script uses the latest run directory under each corresponding formal checkpoint folder.
 
 SHAP interaction analysis:
 
 ```bash
-python scripts/shap_interaction_dataset1.py
+python scripts/shap_interaction_dataset1.py \
+  --thm4-run-dir checkpoints/formal_dataset1_7feat_cl2d_contact_time_thm4_avg/<run_id> \
+  --bdcm-run-dir checkpoints/formal_dataset1_7feat_cl2d_contact_time_bdcm_avg/<run_id> \
+  --dbcm-run-dir checkpoints/formal_dataset1_7feat_cl2d_contact_time_dbcm_avg/<run_id>
 ```
 
 Formal 7-feature PDF report:
@@ -405,11 +438,13 @@ Format:
 ruff format dbp_prediction tests
 ```
 
+GitHub Actions runs the same lint and test checks on every push and pull request.
+
 ## Notes for Future Work
 
 - Keep formal claims tied to specific dataset, target, model family, and run artifact.
 - Keep U.S. Dataset results separate from packaged benchmark results.
-- If exact historical metrics are needed, preserve the relevant `checkpoints/<experiment>/<run_id>/` directory.
+- Preserve small historical metric JSON files under `results/`; keep large model checkpoints under ignored `checkpoints/`.
 - Extend split strategies only after adding tests in the dataset/splitter layer.
 - Treat SHAP findings as model-attribution evidence rather than causal proof.
 

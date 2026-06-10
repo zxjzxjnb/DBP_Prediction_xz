@@ -775,7 +775,15 @@ def run_per_target_tuning_job(request: PerTargetTuningRequest) -> PerTargetTunin
 
         best_so_far: dict[str, Any] = {}
 
-        def objective(trial: optuna.Trial) -> float:
+        def objective(
+            trial: optuna.Trial,
+            model_specs: dict[str, Any] = model_specs,
+            training_specs: dict[str, Any] = training_specs,
+            target_name: str = target_name,
+            target_seed: int = target_seed,
+            stability_penalty: float = stability_penalty,
+            best_so_far: dict[str, Any] = best_so_far,
+        ) -> float:
             _, tuned_model_params = _sample_search_group(trial, model_specs)
             _, tuned_training_params = _sample_search_group(trial, training_specs)
 
